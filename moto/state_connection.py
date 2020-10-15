@@ -39,6 +39,6 @@ class StateConnection:
             if header.msg_type == MsgType.JOINT_FEEDBACK:
                 with self._lock:
                     self._joint_feedback = JointFeedback.from_bytes(
-                        data[16 : prefix.length - 12]
+                        data[16 : 148]
                     )
 

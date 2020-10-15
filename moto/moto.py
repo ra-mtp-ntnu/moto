@@ -18,6 +18,19 @@ class Moto:
     def position(self):
         return self._state_connection.joint_feedback.pos
 
+    @property
+    def velocity(self):
+        return self._state_connection.joint_feedback.pos
+
+    @property
+    def acceleration(self):
+        return self._state_connection.joint_feedback.pos
+
+    def joint_feedback(self):
+        return self._state_connection.joint_feedback
+
+        
+
 
 
 
