@@ -157,12 +157,15 @@ class FlagsValidFields(Enum):
 @dataclass
 class RobotStatus:
     drives_powered: int  # Servo Power: -1=Unknown, 1=ON, 0=OFF
-    e_stopped: int  # Controller E-Stop state: -1=Unknown, 1=True(ON), 0=False(OFF)
+    # Controller E-Stop state: -1=Unknown, 1=True(ON), 0=False(OFF)
+    e_stopped: int
     error_code: int  # Alarm code
     in_error: int  # Is there an alarm:   -1=Unknown, 1=True, 0=False
     in_motion: int  # Is currently executing a motion command:  -1=Unknown, 1=True, 0=False
-    mode: int  # Controller/Pendant mode: -1=Unknown, 1=Manual(TEACH), 2=Auto(PLAY)
-    motion_possible: int  # Is the controller ready to receive motion: -1=Unknown, 1=ENABLED, 0=DISABLED
+    # Controller/Pendant mode: -1=Unknown, 1=Manual(TEACH), 2=Auto(PLAY)
+    mode: int
+    # Is the controller ready to receive motion: -1=Unknown, 1=ENABLED, 0=DISABLED
+    motion_possible: int
 
 
 @dataclass
@@ -177,7 +180,8 @@ class JointTrajPtFull:
     valid_fields: FlagsValidFields
     # Timestamp associated with this trajectory point; Units: in seconds
     time: float
-    pos: List[float]  # Desired joint positions in radian.  Base to Tool joint order
+    # Desired joint positions in radian.  Base to Tool joint order
+    pos: List[float]
     vel: List[float]  # Desired joint velocities in radian/sec.
     acc: List[float]  # Desired joint accelerations in radian/sec^2.
 
@@ -193,7 +197,8 @@ class JointFeedback:
     valid_fields: FlagsValidFields
     # Timestamp associated with this trajectory point; Units: in seconds
     time: float
-    pos: List[float]  # Feedback joint positions in radian.  Base to Tool joint order
+    # Feedback joint positions in radian.  Base to Tool joint order
+    pos: List[float]
     vel: List[float]  # Feedback joint velocities in radian/sec.
     acc: List[float]  # Feedback joint accelerations in radian/sec^2.
 
@@ -238,28 +243,82 @@ class JointFeedback:
 
 @dataclass
 class MotoMotionCtrl:
+    struct_: ClassVar[Struct] = Struct("3i10f")
+
     groupno: int  # Robot/group ID;  0 = 1st robot
-    sequence: int  # Optional message tracking number that will be echoed back in the response.
+    # Optional message tracking number that will be echoed back in the response.
+    sequence: int
     command: CommandType  # Desired command
     data: List[float]  # Command data - for future use
+
+    def __init__(self, groupno: int, sequence: int, command: CommandType, data: List[float] = [0.0]*10):
+        self.groupno: int = groupno
+        self.sequence: int = sequence
+        self.command: CommandType = CommandType(command)
+        self.data: List[float] = data
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        unpacked = cls.struct_.unpack(bytes_)
+        groupno = unpacked[0]
+        sequence = unpacked[1]
+        command = CommandType(unpacked[2])
+        data = np.array(unpacked[3:13])
+        return cls(groupno, sequence, command, data)
+
+    def to_bytes(self):
+        packed = self.struct_.pack(
+            self.groupno,
+            self.sequence,
+            self.command.value,
+            *self.data
+        )
+        return packed
 
 
 @dataclass
 class MotoMotionReply:
+    struct_: ClassVar[Struct] = Struct("5i10f")
+
     groupno: int  # Robot/group ID;  0 = 1st robot
-    sequence: int  # Optional message tracking number that will be echoed back in the response.
+    # Optional message tracking number that will be echoed back in the response.
+    sequence: int
     command: int  # Reference to the received message command or type
     result: ResultType  # High level result code
     subcode: int  # More detailed result code (optional)
     data: List[float]  # Reply data - for future use
 
+    @classmethod
+    def from_bytes(cls, bytes_):
+        unpacked = cls.struct_.unpack(bytes_)
+        groupno = unpacked[0]
+        sequence = unpacked[1]
+        command = unpacked[2]
+        result = unpacked[3]
+        subcode = unpacked[4]
+        data = np.array(unpacked[5:15])
+        return cls(groupno, sequence, command, result, subcode, data)
+
+    def to_bytes(self):
+        packed = self.struct_.pack(
+            self.groupno,
+            self.sequence,
+            self.command,
+            self.result,
+            self.subcode,
+            self.data
+        )
+        return packed
+
 
 @dataclass
 class JointTrajPtExData:
     groupno: int  # Robot/group ID;  0 = 1st robot
-    valid_fields: FlagsValidFields  # Bit-mask indicating which “optional” fields are filled with data. 1=time, 2=position, 4=velocity, 8=acceleration
+    # Bit-mask indicating which “optional” fields are filled with data. 1=time, 2=position, 4=velocity, 8=acceleration
+    valid_fields: FlagsValidFields
     time: float  # Timestamp associated with this trajectory point; Units: in seconds
-    pos: List[float]  # Desired joint positions in radian.  Base to Tool joint order
+    # Desired joint positions in radian.  Base to Tool joint order
+    pos: List[float]
     vel: List[float]  # Desired joint velocities in radian/sec.
     acc: List[float]  # Desired joint accelerations in radian/sec^2.
 
@@ -282,4 +341,3 @@ class SelectTool:
     groupno: int
     tool: int
     sequence: int
-

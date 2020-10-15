@@ -1,0 +1,4 @@
+
+
+class SimpleMessageConnection:
+    pass

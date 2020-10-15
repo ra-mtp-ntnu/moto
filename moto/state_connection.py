@@ -1,11 +1,12 @@
 from copy import copy
 from threading import Thread, Lock
 
+from moto.simple_message_connection import SimpleMessageConnection
 from moto.tcp_client import TcpClient
 from moto.simple_message import Prefix, Header, JointFeedback, MsgType
 
 
-class StateConnection:
+class StateConnection(SimpleMessageConnection):
 
     TCP_PORT_STATE = 50241
 
