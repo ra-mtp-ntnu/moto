@@ -1,12 +1,24 @@
+from typing import List, Union, ClassVar
 from dataclasses import dataclass
 from enum import Enum
+from struct import Struct
 
-from typing import List
+import numpy as np
 
 
 @dataclass
 class Prefix:
+
+    struct_: ClassVar[Struct] = Struct("i")
+
     length: int
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        return cls(*cls.struct_.unpack(bytes_))
+
+    def to_bytes(self):
+        return self.struct_.pack(self.length)
 
 
 class MsgType(Enum):
@@ -108,9 +120,31 @@ class NotReadySubcode(Enum):
 
 @dataclass
 class Header:
+
+    struct_: ClassVar[Struct] = Struct("3i")
+
     msg_type: MsgType
     comm_type: CommType
     reply_type: ReplyType
+
+    def __init__(
+        self,
+        msg_type: Union[int, MsgType],
+        comm_type: Union[int, CommType],
+        reply_type: Union[int, ReplyType],
+    ):
+        self.msg_type = MsgType(msg_type)
+        self.comm_type = CommType(comm_type)
+        self.reply_type = ReplyType(reply_type)
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        return cls(*cls.struct_.unpack(bytes_))
+
+    def to_bytes(self):
+        return self.struct_.pack(
+            self.msg_type.value, self.comm_type.value, self.reply_type.value
+        )
 
 
 class FlagsValidFields(Enum):
@@ -150,6 +184,8 @@ class JointTrajPtFull:
 
 @dataclass
 class JointFeedback:
+    struct_: ClassVar[Struct] = Struct("2i31f")
+
     # Robot/group ID;  0 = 1st robot
     groupno: int
     # Bit-mask indicating which “optional” fields are filled with data.
@@ -160,6 +196,44 @@ class JointFeedback:
     pos: List[float]  # Feedback joint positions in radian.  Base to Tool joint order
     vel: List[float]  # Feedback joint velocities in radian/sec.
     acc: List[float]  # Feedback joint accelerations in radian/sec^2.
+
+    def __init__(
+        self,
+        groupno: int,
+        valid_fields: FlagsValidFields,
+        time: float,
+        pos: List[float],
+        vel: List[float],
+        acc: List[float],
+    ):
+        self.groupno: int = groupno
+        self.valid_fields: FlagsValidFields = FlagsValidFields(valid_fields)
+        self.time: float = time
+        self.pos: List[float] = pos
+        self.vel: List[float] = vel
+        self.acc: List[float] = acc
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        unpacked = cls.struct_.unpack(bytes_)
+        groupno = unpacked[0]
+        valid_fields = FlagsValidFields(unpacked[1])
+        time = unpacked[2]
+        pos = np.array(unpacked[3:13])
+        vel = np.array(unpacked[13:23])
+        acc = np.array(unpacked[23:33])
+        return cls(groupno, valid_fields, time, pos, vel, acc)
+
+    def to_bytes(self):
+        packed = self.struct_.pack(
+            self.groupno,
+            self.valid_fields.value,
+            self.time,
+            *self.pos,
+            *self.vel,
+            *self.acc
+        )
+        return packed
 
 
 @dataclass
