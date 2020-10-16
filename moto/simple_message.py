@@ -85,7 +85,7 @@ class ResultType(Enum):
     MP_FAILURE = 6
 
 
-class InvalidSubCode(Enum):
+class SubCode(Enum):
     INVALID_UNSPECIFIED = 3000
     INVALID_MSGSIZE = 3001
     INVALID_MSGHEADER = 3002
@@ -101,9 +101,6 @@ class InvalidSubCode(Enum):
     INVALID_DATA_INSUFFICIENT = 3014
     INVALID_DATA_TIME = 3015
     INVALID_DATA_TOOLNO = 3016
-
-
-class NotReadySubcode(Enum):
     NOT_READY_UNSPECIFIED = 5000
     NOT_READY_ALARM = 5001
     NOT_READY_ERROR = 5002
@@ -251,7 +248,13 @@ class MotoMotionCtrl:
     command: CommandType  # Desired command
     data: List[float]  # Command data - for future use
 
-    def __init__(self, groupno: int, sequence: int, command: CommandType, data: List[float] = [0.0]*10):
+    def __init__(
+        self,
+        groupno: int,
+        sequence: int,
+        command: CommandType,
+        data: List[float] = [0.0] * 10,
+    ):
         self.groupno: int = groupno
         self.sequence: int = sequence
         self.command: CommandType = CommandType(command)
@@ -268,10 +271,7 @@ class MotoMotionCtrl:
 
     def to_bytes(self):
         packed = self.struct_.pack(
-            self.groupno,
-            self.sequence,
-            self.command.value,
-            *self.data
+            self.groupno, self.sequence, self.command.value, *self.data
         )
         return packed
 
@@ -279,14 +279,34 @@ class MotoMotionCtrl:
 @dataclass
 class MotoMotionReply:
     struct_: ClassVar[Struct] = Struct("5i10f")
+    size = struct_.size
 
     groupno: int  # Robot/group ID;  0 = 1st robot
     # Optional message tracking number that will be echoed back in the response.
     sequence: int
-    command: int  # Reference to the received message command or type
+    command: MsgType  # Reference to the received message command or type
     result: ResultType  # High level result code
-    subcode: int  # More detailed result code (optional)
+    subcode: SubCode  # More detailed result code (optional)
     data: List[float]  # Reply data - for future use
+
+    def __init__(
+        self,
+        groupno: int,
+        sequence: int,
+        command: Union[int, MsgType],
+        result: Union[int, ResultType],
+        subcode: Union[int, SubCode],
+        data: List[float] = [0] * 10,
+    ):
+        self.groupno: int = groupno
+        self.sequence: int = sequence
+        self.command: MsgType = MsgType(command)
+        self.result: ResultType = ResultType(result)
+        try:
+            self.subcode: SubCode = SubCode(subcode)
+        except:
+            self.subcode = subcode
+        self.data: List[float] = data
 
     @classmethod
     def from_bytes(cls, bytes_):
@@ -306,7 +326,7 @@ class MotoMotionReply:
             self.command,
             self.result,
             self.subcode,
-            self.data
+            self.data,
         )
         return packed
 
