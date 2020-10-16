@@ -8,8 +8,8 @@ import numpy as np
 
 @dataclass
 class Prefix:
-
     struct_: ClassVar[Struct] = Struct("i")
+    size: ClassVar[int] = struct_.size
 
     length: int
 
@@ -117,8 +117,8 @@ class SubCode(Enum):
 
 @dataclass
 class Header:
-
     struct_: ClassVar[Struct] = Struct("3i")
+    size: ClassVar[int] = struct_.size
 
     msg_type: MsgType
     comm_type: CommType
@@ -148,7 +148,7 @@ class FlagsValidFields(Enum):
     TIME = 1
     POSITION = 2
     VELOCITY = 4
-    ACCELERATION = 6
+    ACCELERATION = 8
 
 
 @dataclass
@@ -167,6 +167,9 @@ class RobotStatus:
 
 @dataclass
 class JointTrajPtFull:
+    struct_: ClassVar[Struct] = Struct("3i31f")
+    size: ClassVar[int] = struct_.size
+
     # Robot/group ID;  0 = 1st robot
     groupno: int
     # Index of point in trajectory; 0 = Initial trajectory point,
@@ -174,7 +177,7 @@ class JointTrajPtFull:
     sequence: int
     # Bit-mask indicating which “optional” fields are filled with data.
     # 1=time, 2=position, 4=velocity, 8=acceleration
-    valid_fields: FlagsValidFields
+    valid_fields: int
     # Timestamp associated with this trajectory point; Units: in seconds
     time: float
     # Desired joint positions in radian.  Base to Tool joint order
@@ -182,16 +185,59 @@ class JointTrajPtFull:
     vel: List[float]  # Desired joint velocities in radian/sec.
     acc: List[float]  # Desired joint accelerations in radian/sec^2.
 
+    def __init__(
+        self,
+        groupno: int,
+        sequence: int,
+        valid_fields: int,
+        time: float,
+        pos: List[float],
+        vel: List[float],
+        acc: List[float],
+    ):
+        self.groupno: int = groupno
+        self.sequence: int = sequence
+        self.valid_fields: int = valid_fields
+        self.time: float = time
+        self.pos: List[float] = pos
+        self.vel: List[float] = vel
+        self.acc: List[float] = acc
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        unpacked = cls.struct_.unpack(bytes_)
+        groupno = unpacked[0]
+        sequence = unpacked[1]
+        valid_fields = FlagsValidFields(unpacked[2])
+        time = unpacked[3]
+        pos = np.array(unpacked[4:14])
+        vel = np.array(unpacked[14:24])
+        acc = np.array(unpacked[24:34])
+        return cls(groupno, valid_fields, time, pos, vel, acc)
+
+    def to_bytes(self):
+        packed = self.struct_.pack(
+            self.groupno,
+            self.sequence,
+            self.valid_fields,
+            self.time,
+            *self.pos,
+            *self.vel,
+            *self.acc
+        )
+        return packed
+
 
 @dataclass
 class JointFeedback:
     struct_: ClassVar[Struct] = Struct("2i31f")
+    size: ClassVar[int] = struct_.size
 
     # Robot/group ID;  0 = 1st robot
     groupno: int
     # Bit-mask indicating which “optional” fields are filled with data.
     # 1=time, 2=position, 4=velocity, 8=acceleration
-    valid_fields: FlagsValidFields
+    valid_fields: int
     # Timestamp associated with this trajectory point; Units: in seconds
     time: float
     # Feedback joint positions in radian.  Base to Tool joint order
@@ -202,14 +248,14 @@ class JointFeedback:
     def __init__(
         self,
         groupno: int,
-        valid_fields: FlagsValidFields,
+        valid_fields: int,
         time: float,
         pos: List[float],
         vel: List[float],
         acc: List[float],
     ):
         self.groupno: int = groupno
-        self.valid_fields: FlagsValidFields = FlagsValidFields(valid_fields)
+        self.valid_fields: int = valid_fields
         self.time: float = time
         self.pos: List[float] = pos
         self.vel: List[float] = vel
@@ -219,7 +265,7 @@ class JointFeedback:
     def from_bytes(cls, bytes_):
         unpacked = cls.struct_.unpack(bytes_)
         groupno = unpacked[0]
-        valid_fields = FlagsValidFields(unpacked[1])
+        valid_fields = unpacked[1]
         time = unpacked[2]
         pos = np.array(unpacked[3:13])
         vel = np.array(unpacked[13:23])
@@ -241,6 +287,7 @@ class JointFeedback:
 @dataclass
 class MotoMotionCtrl:
     struct_: ClassVar[Struct] = Struct("3i10f")
+    size: ClassVar[int] = struct_.size
 
     groupno: int  # Robot/group ID;  0 = 1st robot
     # Optional message tracking number that will be echoed back in the response.
