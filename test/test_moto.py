@@ -4,7 +4,9 @@ from moto import Moto
 from moto.simple_message import JointTrajPtFull, Prefix, Header, MsgType, CommType, ReplyType
 
 
-robot = Moto("192.168.255.200")
+m = Moto("192.168.255.200")
+
+robot = m.control_group(0)
 
 # robot = cell.control_group("R1")
 # positioner = cell.control_group[1]
