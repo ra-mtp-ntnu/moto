@@ -30,6 +30,6 @@ class Moto:
         self._state_connection.start()
         self._io_connection.start()
 
-    @property
-    def control_group(groupno:int) -> ControlGroup:
+    
+    def control_group(self, groupno:int) -> ControlGroup:
         return self._control_groups[groupno]

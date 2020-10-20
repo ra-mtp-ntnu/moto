@@ -275,7 +275,7 @@ class JointFeedback:
     def to_bytes(self):
         packed = self.struct_.pack(
             self.groupno,
-            self.valid_fields.value,
+            self.valid_fields,
             self.time,
             *self.pos,
             *self.vel,
@@ -331,7 +331,7 @@ class MotoMotionReply:
     groupno: int  # Robot/group ID;  0 = 1st robot
     # Optional message tracking number that will be echoed back in the response.
     sequence: int
-    command: MsgType  # Reference to the received message command or type
+    command: CommandType  # Reference to the received message command or type
     result: ResultType  # High level result code
     subcode: SubCode  # More detailed result code (optional)
     data: List[float]  # Reply data - for future use
@@ -340,14 +340,14 @@ class MotoMotionReply:
         self,
         groupno: int,
         sequence: int,
-        command: Union[int, MsgType],
+        command: Union[int, CommandType],
         result: Union[int, ResultType],
         subcode: Union[int, SubCode],
         data: List[float] = [0] * 10,
     ):
         self.groupno: int = groupno
         self.sequence: int = sequence
-        self.command: MsgType = MsgType(command)
+        self.command: CommandType = CommandType(command)
         self.result: ResultType = ResultType(result)
         try:
             self.subcode: SubCode = SubCode(subcode)
@@ -370,10 +370,10 @@ class MotoMotionReply:
         packed = self.struct_.pack(
             self.groupno,
             self.sequence,
-            self.command,
-            self.result,
+            self.command.value,
+            self.result.value,
             self.subcode,
-            self.data,
+            *self.data,
         )
         return packed
 
@@ -408,3 +408,14 @@ class SelectTool:
     groupno: int
     tool: int
     sequence: int
+
+
+@dataclass
+class SimpleMessage:
+    prefix: Prefix
+    header: Header
+    body: Union[JointFeedback, JointTrajPtFull]
+
+    def to_bytes(self):
+        return self.prefix.to_bytes() + self.header.to_bytes() + self.body.to_bytes()
+

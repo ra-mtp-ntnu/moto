@@ -8,3 +8,6 @@ class IoConnection(SimpleMessageConnection):
 
     def __init__(self, ip_address):
         pass
+
+    def start(self):
+        pass
