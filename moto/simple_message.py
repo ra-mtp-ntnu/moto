@@ -412,10 +412,13 @@ class SelectTool:
 
 @dataclass
 class SimpleMessage:
-    prefix: Prefix
     header: Header
     body: Union[JointFeedback, JointTrajPtFull]
 
     def to_bytes(self):
-        return self.prefix.to_bytes() + self.header.to_bytes() + self.body.to_bytes()
+        return Prefix(self.header.size + self.body.size).to_bytes() + self.header.to_bytes() + self.body.to_bytes()
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        pass
 

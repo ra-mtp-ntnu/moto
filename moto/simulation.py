@@ -96,12 +96,11 @@ class MotoSimulation:
             header = Header.from_bytes(data[4:16])
             if header.msg_type == MsgType.MOTO_MOTION_CTRL:
                 request = MotoMotionCtrl.from_bytes(data[16 : 16 + MotoMotionCtrl.size])
-                prefix = Prefix(Header.size + MotoMotionReply.size)
                 header = Header(
                     MsgType.MOTO_MOTION_REPLY, CommType.SERVICE_REPLY, ReplyType.SUCCESS
                 )
                 body = MotoMotionReply(-1, -1, request.command, ResultType.SUCCESS, 0)
-                msg = SimpleMessage(prefix, header, body)
+                msg = SimpleMessage(header, body)
                 self._motion_connection.send(msg.to_bytes())
 
         print("stopping motion connection")
@@ -113,7 +112,6 @@ class MotoSimulation:
         self._state_connection = conn
         while not self._stop:
             with self._state_lock:
-                prefix = Prefix(Header.size + JointFeedback.size)
                 header = Header(
                     MsgType.JOINT_FEEDBACK, CommType.TOPIC, ReplyType.INVALID
                 )
@@ -125,7 +123,7 @@ class MotoSimulation:
                     self._vel,
                     self._acc,
                 )
-                msg = SimpleMessage(prefix, header, body)
+                msg = SimpleMessage(header, body)
                 self._state_connection.sendall(msg.to_bytes())
                 time.sleep(1.0 / self._rate)
 
