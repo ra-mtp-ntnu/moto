@@ -410,7 +410,7 @@ cls_from_msg_type = {
     MsgType.JOINT_TRAJ_PT_FULL: JointTrajPtFull,
     MsgType.JOINT_FEEDBACK: JointFeedback,
     MsgType.MOTO_MOTION_CTRL: MotoMotionCtrl,
-    MsgType.MOTO_MOTION_REPLY: MotoMotionReply
+    MsgType.MOTO_MOTION_REPLY: MotoMotionReply,
 }
 
 
@@ -429,14 +429,11 @@ class SimpleMessage:
     @classmethod
     def from_bytes(cls, bytes_):
         prefix = Prefix.from_bytes(bytes_[:4])
-        bytes_ = bytes_[4:]
-        header = Header.from_bytes(bytes_[:12])
-        bytes_ = bytes_[12:]
+        header = Header.from_bytes(bytes_[4:16])
 
         cls_ = cls_from_msg_type[header.msg_type]
         assert prefix.length == header.size + cls_.size
-        body = cls_.from_bytes(bytes_[:cls_.size])
+        body = cls_.from_bytes(bytes_[16 : 16 + cls_.size])
 
         return SimpleMessage(header, body)
-
 
