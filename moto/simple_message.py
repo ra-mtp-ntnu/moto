@@ -223,7 +223,7 @@ class JointTrajPtFull:
             self.time,
             *self.pos,
             *self.vel,
-            *self.acc
+            *self.acc,
         )
         return packed
 
@@ -274,12 +274,7 @@ class JointFeedback:
 
     def to_bytes(self):
         packed = self.struct_.pack(
-            self.groupno,
-            self.valid_fields,
-            self.time,
-            *self.pos,
-            *self.vel,
-            *self.acc
+            self.groupno, self.valid_fields, self.time, *self.pos, *self.vel, *self.acc
         )
         return packed
 
@@ -410,15 +405,38 @@ class SelectTool:
     sequence: int
 
 
+cls_from_msg_type = {
+    MsgType.ROBOT_STATUS: RobotStatus,
+    MsgType.JOINT_TRAJ_PT_FULL: JointTrajPtFull,
+    MsgType.JOINT_FEEDBACK: JointFeedback,
+    MsgType.MOTO_MOTION_CTRL: MotoMotionCtrl,
+    MsgType.MOTO_MOTION_REPLY: MotoMotionReply
+}
+
+
 @dataclass
 class SimpleMessage:
     header: Header
     body: Union[JointFeedback, JointTrajPtFull]
 
     def to_bytes(self):
-        return Prefix(self.header.size + self.body.size).to_bytes() + self.header.to_bytes() + self.body.to_bytes()
+        return (
+            Prefix(self.header.size + self.body.size).to_bytes()
+            + self.header.to_bytes()
+            + self.body.to_bytes()
+        )
 
     @classmethod
     def from_bytes(cls, bytes_):
-        pass
+        prefix = Prefix.from_bytes(bytes_[:4])
+        bytes_ = bytes_[4:]
+        header = Header.from_bytes(bytes_[:12])
+        bytes_ = bytes_[12:]
+
+        cls_ = cls_from_msg_type[header.msg_type]
+        assert prefix.length == header.size + cls_.size
+        body = cls_.from_bytes(bytes_[:cls_.size])
+
+        return SimpleMessage(header, body)
+
 
