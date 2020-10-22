@@ -9,6 +9,7 @@ from moto.simple_message import (
     MotoMotionReply,
     CommandType,
     ResultType,
+    SimpleMessage,
 )
 from moto.tcp_client import TcpClient
 
@@ -22,11 +23,9 @@ class MotionConnection(SimpleMessageConnection):
         self._tcp_client = TcpClient((ip_address, self.TCP_PORT_MOTION))
 
     def _send_and_recv(self, body: MotoMotionCtrl):
-        msg = Header(
+        header = Header(
             MsgType.MOTO_MOTION_CTRL, CommType.SERVICE_REQUEST, ReplyType.INVALID
-        ).to_bytes()
-        msg += body.to_bytes()
-        msg = Prefix(len(msg)).to_bytes() + msg
+        )
 
         self._tcp_client.send(msg)
         response = self._tcp_client.recv()
@@ -45,11 +44,22 @@ class MotionConnection(SimpleMessageConnection):
     def start(self):
         self._tcp_client.connect()
 
-    def check_motion_ready(self, groupno: int = -1, sequence: int = -1):
-        request = self._request(groupno, sequence, CommandType.CHECK_MOTION_READY.value)
-        return self._send_and_recv(request)
+    def check_motion_ready(self):
 
-    def check_queue_count(self, groupno: int =-1, sequence: int = -1):
+        request = SimpleMessage(
+            Header(
+                MsgType.MOTO_MOTION_CTRL, CommType.SERVICE_REQUEST, ReplyType.INVALID
+            ),
+            MotoMotionCtrl(-1, -1, CommandType.CHECK_MOTION_READY),
+        )
+        
+        self._tcp_client.send(request.to_bytes())
+        response = SimpleMessage.from_bytes(self._tcp_client.recv())
+        assert response.header.msg_type == MsgType.MOTO_MOTION_REPLY
+
+        return response.body
+
+    def check_queue_count(self, groupno: int = -1, sequence: int = -1):
         return self._send_and_recv(
             self._request(groupno, sequence, CommandType.CHECK_QUEUE_CNT)
         )

@@ -3,7 +3,8 @@ from dataclasses import dataclass
 from enum import Enum
 from struct import Struct
 
-import numpy as np
+ROS_MAX_JOINT: int = 10
+MOT_MAX_GR: int = 4
 
 
 @dataclass
@@ -14,10 +15,10 @@ class Prefix:
     length: int
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         return cls(*cls.struct_.unpack(bytes_))
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         return self.struct_.pack(self.length)
 
 
@@ -210,9 +211,9 @@ class JointTrajPtFull:
         sequence = unpacked[1]
         valid_fields = FlagsValidFields(unpacked[2])
         time = unpacked[3]
-        pos = np.array(unpacked[4:14])
-        vel = np.array(unpacked[14:24])
-        acc = np.array(unpacked[24:34])
+        pos = unpacked[4:14]
+        vel = unpacked[14:24]
+        acc = unpacked[24:34]
         return cls(groupno, valid_fields, time, pos, vel, acc)
 
     def to_bytes(self):
@@ -230,7 +231,7 @@ class JointTrajPtFull:
 
 @dataclass
 class JointFeedback:
-    struct_: ClassVar[Struct] = Struct("2i31f")
+    struct_: ClassVar[Struct] = Struct("2i{}f".format(3 * ROS_MAX_JOINT + 1))
     size: ClassVar[int] = struct_.size
 
     # Robot/group ID;  0 = 1st robot
@@ -267,9 +268,9 @@ class JointFeedback:
         groupno = unpacked[0]
         valid_fields = unpacked[1]
         time = unpacked[2]
-        pos = np.array(unpacked[3:13])
-        vel = np.array(unpacked[13:23])
-        acc = np.array(unpacked[23:33])
+        pos = unpacked[3 : 3 + ROS_MAX_JOINT]
+        vel = unpacked[13 : 13 + ROS_MAX_JOINT]
+        acc = unpacked[23 : 23 + ROS_MAX_JOINT]
         return cls(groupno, valid_fields, time, pos, vel, acc)
 
     def to_bytes(self):
@@ -281,7 +282,7 @@ class JointFeedback:
 
 @dataclass
 class MotoMotionCtrl:
-    struct_: ClassVar[Struct] = Struct("3i10f")
+    struct_: ClassVar[Struct] = Struct("3i{}f".format(ROS_MAX_JOINT))
     size: ClassVar[int] = struct_.size
 
     groupno: int  # Robot/group ID;  0 = 1st robot
@@ -295,7 +296,7 @@ class MotoMotionCtrl:
         groupno: int,
         sequence: int,
         command: CommandType,
-        data: List[float] = [0.0] * 10,
+        data: List[float] = [0.0] * ROS_MAX_JOINT,
     ):
         self.groupno: int = groupno
         self.sequence: int = sequence
@@ -308,7 +309,7 @@ class MotoMotionCtrl:
         groupno = unpacked[0]
         sequence = unpacked[1]
         command = CommandType(unpacked[2])
-        data = np.array(unpacked[3:13])
+        data = unpacked[3:13]
         return cls(groupno, sequence, command, data)
 
     def to_bytes(self):
@@ -320,7 +321,7 @@ class MotoMotionCtrl:
 
 @dataclass
 class MotoMotionReply:
-    struct_: ClassVar[Struct] = Struct("5i10f")
+    struct_: ClassVar[Struct] = Struct("5i{}f".format(ROS_MAX_JOINT))
     size = struct_.size
 
     groupno: int  # Robot/group ID;  0 = 1st robot
@@ -338,7 +339,7 @@ class MotoMotionReply:
         command: Union[int, CommandType],
         result: Union[int, ResultType],
         subcode: Union[int, SubCode],
-        data: List[float] = [0] * 10,
+        data: List[float] = [0] * ROS_MAX_JOINT,
     ):
         self.groupno: int = groupno
         self.sequence: int = sequence
@@ -358,7 +359,7 @@ class MotoMotionReply:
         command = unpacked[2]
         result = unpacked[3]
         subcode = unpacked[4]
-        data = np.array(unpacked[5:15])
+        data = unpacked[5:15]
         return cls(groupno, sequence, command, result, subcode, data)
 
     def to_bytes(self):
@@ -405,7 +406,7 @@ class SelectTool:
     sequence: int
 
 
-cls_from_msg_type = {
+MSG_TYPE_CLS = {
     MsgType.ROBOT_STATUS: RobotStatus,
     MsgType.JOINT_TRAJ_PT_FULL: JointTrajPtFull,
     MsgType.JOINT_FEEDBACK: JointFeedback,
@@ -431,9 +432,9 @@ class SimpleMessage:
         prefix = Prefix.from_bytes(bytes_[:4])
         header = Header.from_bytes(bytes_[4:16])
 
-        cls_ = cls_from_msg_type[header.msg_type]
-        assert prefix.length == header.size + cls_.size
-        body = cls_.from_bytes(bytes_[16 : 16 + cls_.size])
+        body_cls = MSG_TYPE_CLS[header.msg_type]
+        assert prefix.length == header.size + body_cls.size
+        body = body_cls.from_bytes(bytes_[16 : 16 + body_cls.size])
 
         return SimpleMessage(header, body)
 
