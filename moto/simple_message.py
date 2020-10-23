@@ -209,7 +209,7 @@ class JointTrajPtFull:
         unpacked = cls.struct_.unpack(bytes_)
         groupno = unpacked[0]
         sequence = unpacked[1]
-        valid_fields = FlagsValidFields(unpacked[2])
+        valid_fields = unpacked[2]
         time = unpacked[3]
         pos = unpacked[4:14]
         vel = unpacked[14:24]

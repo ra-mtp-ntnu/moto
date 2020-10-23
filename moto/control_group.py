@@ -1,3 +1,12 @@
+from moto.simple_message import (
+    JointTrajPtFull,
+    Header,
+    MsgType,
+    CommType,
+    ReplyType,
+    SimpleMessage,
+)
+
 
 class ControlGroup:
 
@@ -16,17 +25,21 @@ class ControlGroup:
         self._io_connection: "IoConnection" = io_connection
 
     @property
-    def position(self):
-        return self._state_connection.joint_feedback_for_group(self._groupno).pos
+    def groupno(self):
+        return self._groupno
 
     @property
-    def velocity(self):
-        return self._state_connection.joint_feedback_for_group(self._groupno).vel
+    def joint_feedback(self):
+        return self._state_connection.joint_feedback(self._groupno)
 
-    @property
-    def acceleration(self):
-        return self._state_connection.joint_feedback_for_group(self._groupno).acc
-
-    
-
+    def send_joint_traj_pt_full(self, joint_traj_pt_full: JointTrajPtFull) -> None:
+        msg = SimpleMessage(
+            header=Header(
+                msg_type=MsgType.JOINT_TRAJ_PT_FULL,
+                comm_type=CommType.TOPIC,
+                reply_type=ReplyType.INVALID,
+            ),
+            body=joint_traj_pt_full,
+        )
+        self._motion_connection.send(msg)
 

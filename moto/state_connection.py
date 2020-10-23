@@ -1,9 +1,10 @@
+from typing import List
 from copy import copy
 from threading import Thread, Lock
 
 from moto.simple_message_connection import SimpleMessageConnection
 from moto.tcp_client import TcpClient
-from moto.simple_message import Prefix, Header, JointFeedback, MsgType
+from moto.simple_message import Prefix, Header, JointFeedback, MsgType, SimpleMessage
 from moto.control_group import ControlGroup
 
 
@@ -11,38 +12,32 @@ class StateConnection(SimpleMessageConnection):
 
     TCP_PORT_STATE = 50241
 
-    def __init__(self, ip_address):
-        self._tcp_client = TcpClient((ip_address, self.TCP_PORT_STATE))
+    def __init__(self, ip_address: str):
+        self._tcp_client: TcpClient = TcpClient((ip_address, self.TCP_PORT_STATE))
 
-        self._joint_feedback_per_group = [None] * ControlGroup.MAX_CONTROLLABLE_GROUPS
-        self._lock = Lock()
+        self._joint_feedback: List[JointFeedback] = [
+            None
+        ] * ControlGroup.MAX_CONTROLLABLE_GROUPS
+        self._lock: Lock = Lock()
 
-        self._run_thread = Thread(target=self._run)
+        self._run_thread: Thread = Thread(target=self._run)
         self._run_thread.daemon = True
 
-
-    def joint_feedback_for_group(self, groupno:int):
+    def joint_feedback(self, groupno: int) -> JointFeedback:
         with self._lock:
-            return copy(self._joint_feedback_per_group[groupno])
+            return copy(self._joint_feedback[groupno])
 
-    def start(self):
+    def start(self) -> None:
         self._tcp_client.connect()
         self._run_thread.start()
 
-    def stop(self):
+    def stop(self) -> None:
         pass
 
-    def _run(self):
+    def _run(self) -> None:
         while True:
-            data = self._tcp_client.recv()
-
-            prefix = Prefix.from_bytes(data[:4])
-            header = Header.from_bytes(data[4:16])
-            if header.msg_type == MsgType.JOINT_FEEDBACK:
+            msg = SimpleMessage.from_bytes(self._tcp_client.recv())
+            if msg.header.msg_type == MsgType.JOINT_FEEDBACK:
                 with self._lock:
-                    joint_feedback = JointFeedback.from_bytes(
-                        data[16 : 148]
-                    )
-                    self._joint_feedback_per_group[joint_feedback.groupno] = joint_feedback
-                    
+                    self._joint_feedback[msg.body.groupno] = msg.body
 
