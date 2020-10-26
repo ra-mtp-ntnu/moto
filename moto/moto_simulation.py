@@ -12,10 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import List, Tuple, Any
+
 import socket
-import threading
+from threading import Thread, Lock
 import time
-import numpy as np
+
+Vector = List[float]
+Address = Tuple[str, int]
 
 from moto.simple_message import (
     JointFeedback,
@@ -49,13 +53,13 @@ class MotoSimulation:
         self._state_connection = None
         self._io_connection = None
 
-        self._motion_server_thread = threading.Thread(target=self._run_motion_server)
+        self._motion_server_thread = Thread(target=self._run_motion_server)
         self._motion_server_thread.daemon = True
 
-        self._state_server_thread = threading.Thread(target=self._run_state_server)
+        self._state_server_thread = Thread(target=self._run_state_server)
         self._state_server_thread.daemon = True
 
-        self._io_server_thread = threading.Thread(target=self._run_io_server)
+        self._io_server_thread = Thread(target=self._run_io_server)
         self._io_server_thread.daemon = True
 
         self._groupno: int = 0
@@ -63,21 +67,22 @@ class MotoSimulation:
         self._time = 0.0
         self._rate = 25.0
         # Hz
-        self._pos = np.zeros(10)
-        self._vel = np.zeros(10)
-        self._acc = np.zeros(10)
-        self._state_lock = threading.Lock()
+        self._pos: Vector = [0.0] * 10
+        self._vel: Vector = [0.0] * 10
+        self._acc: Vector = [0.0] * 10
 
-        self._stop = False
+        self._state_lock: Lock = Lock()
 
-    def start(self):
+        self._stop: bool = False
+
+    def start(self) -> None:
         self._motion_server_thread.start()
         self._state_server_thread.start()
 
-    def stop(self):
+    def stop(self) -> None:
         self._stop = True
 
-    def _open_tcp_connection(self, address):
+    def _open_tcp_connection(self, address: Address) -> Tuple[socket.socket, Any]:
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -85,7 +90,7 @@ class MotoSimulation:
         server.listen()
         return server.accept()
 
-    def _run_motion_server(self):
+    def _run_motion_server(self) -> None:
         print("Waiting for motion connection")
         conn, addr = self._open_tcp_connection((self._ip_address, self.TCP_PORT_MOTION))
         print("Got connection from {}".format(addr))

@@ -1,4 +1,4 @@
-from moto.simulation import MotoSimulation
+from moto.moto_simulation import MotoSimulation
 
 sim = MotoSimulation()
 sim.start()

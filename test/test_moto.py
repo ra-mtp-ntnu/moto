@@ -1,5 +1,3 @@
-import numpy as np
-
 from moto import Moto
 # from moto.simple_message import JointTrajPtFull, Prefix, Header, MsgType, CommType, ReplyType
 

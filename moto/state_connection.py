@@ -1,10 +1,23 @@
+# Copyright 2020 Norwegian University of Science and Technology.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from typing import List
 from copy import copy
 from threading import Thread, Lock
 
 from moto.simple_message_connection import SimpleMessageConnection
-from moto.tcp_client import TcpClient
-from moto.simple_message import Prefix, Header, JointFeedback, MsgType, SimpleMessage
+from moto.simple_message import JointFeedback, MsgType, SimpleMessage
 from moto.control_group import ControlGroup
 
 
@@ -13,7 +26,7 @@ class StateConnection(SimpleMessageConnection):
     TCP_PORT_STATE = 50241
 
     def __init__(self, ip_address: str):
-        self._tcp_client: TcpClient = TcpClient((ip_address, self.TCP_PORT_STATE))
+        super().__init__((ip_address, self.TCP_PORT_STATE))
 
         self._joint_feedback: List[JointFeedback] = [
             None
@@ -36,8 +49,7 @@ class StateConnection(SimpleMessageConnection):
 
     def _run(self) -> None:
         while True:
-            msg = SimpleMessage.from_bytes(self._tcp_client.recv())
+            msg: SimpleMessage = self.recv()
             if msg.header.msg_type == MsgType.JOINT_FEEDBACK:
                 with self._lock:
                     self._joint_feedback[msg.body.groupno] = msg.body
-
