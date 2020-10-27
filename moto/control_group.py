@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from moto.simple_message import (
+    JointFeedback,
     JointTrajPtFull,
     Header,
     MsgType,
@@ -39,20 +40,20 @@ class ControlGroup:
         self._io_connection: "IoConnection" = io_connection
 
     @property
-    def groupno(self):
+    def groupno(self) -> int:
         return self._groupno
 
     @property
-    def joint_feedback(self):
+    def joint_feedback(self) -> JointFeedback:
         return self._state_connection.joint_feedback(self._groupno)
 
     def send_joint_traj_pt_full(self, joint_traj_pt_full: JointTrajPtFull) -> None:
         msg = SimpleMessage(
-            header=Header(
+            Header(
                 msg_type=MsgType.JOINT_TRAJ_PT_FULL,
                 comm_type=CommType.TOPIC,
                 reply_type=ReplyType.INVALID,
             ),
-            body=joint_traj_pt_full,
+            joint_traj_pt_full,
         )
         self._motion_connection.send(msg)
