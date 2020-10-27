@@ -29,19 +29,31 @@ class ControlGroup:
 
     def __init__(
         self,
+        groupid: str,
         groupno: int,
+        num_joints: int,
         motion_connection: "MotionConnection",
         state_connection: "StateConnection",
         io_connection: "IoConnection",
     ):
+        self._groupid: str = groupid
         self._groupno: int = groupno
+        self._num_joints = num_joints
         self._motion_connection: "MotionConnection" = motion_connection
         self._state_connection: "StateConnection" = state_connection
         self._io_connection: "IoConnection" = io_connection
 
     @property
+    def groupid(self) -> str:
+        return self._groupid
+
+    @property
     def groupno(self) -> int:
         return self._groupno
+
+    @property
+    def num_joints(self) -> int:
+        return self._num_joints
 
     @property
     def joint_feedback(self) -> JointFeedback:
