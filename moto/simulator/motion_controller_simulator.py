@@ -49,10 +49,6 @@ class JointTrajectoryPoint:
 
 
 class MotionControllerSimulator:
-    """
-    Constructor of motion controller simulator
-    """
-
     def __init__(
         self,
         num_joints: int,
@@ -88,7 +84,7 @@ class MotionControllerSimulator:
         self.motion_thread.daemon = True
         self.motion_thread.start()
 
-    def add_motion_waypoint(self, point: JointTrajPtFull):
+    def add_motion_waypoint(self, point: JointTrajectoryPoint):
         self.motion_buffer.put(point)
 
     def get_joint_positions(self) -> Vector:
