@@ -168,6 +168,9 @@ class FlagsValidFields(Enum):
 
 @dataclass
 class RobotStatus:
+    struct_: ClassVar[Struct] = Struct("7f")
+    size = struct_.size
+
     drives_powered: int  # Servo Power: -1=Unknown, 1=ON, 0=OFF
     # Controller E-Stop state: -1=Unknown, 1=True(ON), 0=False(OFF)
     e_stopped: int
@@ -178,6 +181,22 @@ class RobotStatus:
     mode: int
     # Is the controller ready to receive motion: -1=Unknown, 1=ENABLED, 0=DISABLED
     motion_possible: int
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        return cls(*cls.struct_.unpack(bytes_))
+
+    def to_bytes(self):
+        packed = self.struct_.pack(
+            self.drives_powered,
+            self.e_stopped,
+            self.error_code,
+            self.in_error,
+            self.in_motion,
+            self.mode,
+            self.motion_possible,
+        )
+        return packed
 
 
 @dataclass
@@ -420,6 +439,11 @@ class SelectTool:
     sequence: int
 
 
+SimpleMessageBody = Union[
+    RobotStatus, JointTrajPtFull, JointFeedback, MotoMotionCtrl, MotoMotionReply
+]
+
+
 MSG_TYPE_CLS = {
     MsgType.ROBOT_STATUS: RobotStatus,
     MsgType.JOINT_TRAJ_PT_FULL: JointTrajPtFull,
@@ -432,7 +456,7 @@ MSG_TYPE_CLS = {
 @dataclass
 class SimpleMessage:
     header: Header
-    body: Union[JointFeedback, JointTrajPtFull]
+    body: SimpleMessageBody
 
     def to_bytes(self):
         return (
