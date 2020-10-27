@@ -36,8 +36,6 @@ import queue
 import logging
 import time
 
-from moto.simple_message import JointTrajPtFull
-
 Vector = List[float]
 
 
@@ -165,7 +163,6 @@ class MotionControllerSimulator:
         with self.lock:
             if not self.sig_stop:
                 self.joint_positions = point.positions[:]
-                # rospy.loginfo('Moved to position: %s in %s', str(self.joint_positions), str(dur))
             else:
                 logging.debug("Stopping motion immediately, clearing stop signal")
                 self.sig_stop = False
