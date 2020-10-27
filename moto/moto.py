@@ -12,39 +12,43 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List
+from typing import List, Mapping, Tuple
 
 from moto.motion_connection import MotionConnection
 from moto.state_connection import StateConnection
 from moto.io_connection import IoConnection
 from moto.control_group import ControlGroup
 
+ControlGroupDefinition = Tuple[str, int]
+
 
 class Moto:
-    def __init__(self, robot_ip: str, control_group_ids: List[str] = ["R1"]):
+    def __init__(self, robot_ip: str, control_group_defs: List[ControlGroupDefinition]):
         self._robot_ip: str = robot_ip
-        self._control_group_ids: List[str] = control_group_ids
+        self._control_group_defs: List[ControlGroupDefinition] = control_group_defs
 
         self._motion_connection: MotionConnection = MotionConnection(self._robot_ip)
         self._state_connection: StateConnection = StateConnection(self._robot_ip)
         self._io_connection: IoConnection = IoConnection(self._robot_ip)
 
-        self._control_groups: List[ControlGroup] = [
-            ControlGroup(
+        self._control_groups: Mapping[str, ControlGroup] = {}
+        for groupno, control_group_def in enumerate(self._control_group_defs):
+            groupid, num_joints = control_group_def
+            self._control_groups[groupid] = ControlGroup(
+                groupid,
                 groupno,
+                num_joints,
                 self._motion_connection,
                 self._state_connection,
                 self._io_connection,
             )
-            for groupno in range(len(self._control_group_ids))
-        ]
 
         self._motion_connection.start()
         self._state_connection.start()
         self._io_connection.start()
 
-    def control_group(self, groupno: int) -> ControlGroup:
-        return self._control_groups[groupno]
+    def control_group(self, groupid: str) -> ControlGroup:
+        return self._control_groups[groupid]
 
     def check_motion_ready(self):
         return self._motion_connection.check_motion_ready()
