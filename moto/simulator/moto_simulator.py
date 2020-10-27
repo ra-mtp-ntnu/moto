@@ -25,7 +25,6 @@ Address = Tuple[str, int]
 from moto.simple_message import (
     JointFeedback,
     JointTrajPtFull,
-    Prefix,
     Header,
     MsgType,
     CommType,
