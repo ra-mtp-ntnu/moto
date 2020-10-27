@@ -1,10 +1,31 @@
 from moto import Moto
-# from moto.simple_message import JointTrajPtFull, Prefix, Header, MsgType, CommType, ReplyType
+from moto.simple_message import JointTrajPtFull
+
+import time
 
 
 m = Moto("localhost")
 
 r = m.control_group(0)
+
+pt1 = JointTrajPtFull(
+    0, 0, int("1111", 2), 10.0, [1.0] * 10, [0.0] * 10, [0.0] * 10
+)
+
+pt2 = JointTrajPtFull(
+    0, 0, int("1111", 2), 20.0, [2.0] * 10, [0.0] * 10, [0.0] * 10
+)
+
+r.send_joint_traj_pt_full(pt1)
+r.send_joint_traj_pt_full(pt2)
+
+
+for _ in range(1000):
+    time.sleep(0.1)
+    print(r.joint_feedback)
+
+
+
 
 # robot = m.control_group(0)
 
@@ -41,7 +62,3 @@ r = m.control_group(0)
 
 # servos_stopped = robot._motion_connection.stop_servos()
 # print(servos_stopped)
-
-
-
-
