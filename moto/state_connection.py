@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from typing import List
-from copy import copy
+from copy import deepcopy
 from threading import Thread, Lock
 
 from moto.simple_message_connection import SimpleMessageConnection
@@ -33,21 +33,21 @@ class StateConnection(SimpleMessageConnection):
         ] * ControlGroup.MAX_CONTROLLABLE_GROUPS
         self._lock: Lock = Lock()
 
-        self._run_thread: Thread = Thread(target=self._run)
-        self._run_thread.daemon = True
+        self._worker_thread: Thread = Thread(target=self._worker)
+        self._worker_thread.daemon = True
 
     def joint_feedback(self, groupno: int) -> JointFeedback:
         with self._lock:
-            return copy(self._joint_feedback[groupno])
+            return deepcopy(self._joint_feedback[groupno])
 
     def start(self) -> None:
         self._tcp_client.connect()
-        self._run_thread.start()
+        self._worker_thread.start()
 
     def stop(self) -> None:
         pass
 
-    def _run(self) -> None:
+    def _worker(self) -> None:
         while True:
             msg: SimpleMessage = self.recv()
             if msg.header.msg_type == MsgType.JOINT_FEEDBACK:
