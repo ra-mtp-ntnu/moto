@@ -15,6 +15,8 @@
 from typing import List, Union, ClassVar
 from dataclasses import dataclass
 from enum import Enum
+
+import struct
 from struct import Struct
 
 ROS_MAX_JOINT: int = 10
@@ -431,6 +433,22 @@ class JointFeedbackEx:
     number_of_valid_groups: int
     joint_traj_pt_data: List[JointFeedback]
 
+    @classmethod
+    def from_bytes(cls, bytes_):
+        number_of_valid_groups = struct.unpack("i", bytes_[:4])
+        bytes_ = bytes_[4:]
+        joint_traj_pt_data = []
+        for _ in range(number_of_valid_groups):
+            joint_traj_pt_data.append(
+                JointFeedback.from_bytes(bytes_[: JointFeedback.size])
+            )
+            bytes_ = bytes_[JointFeedback.size:]
+
+        return cls(number_of_valid_groups, joint_traj_pt_data)
+
+    def to_bytes(self):
+        pass
+
 
 @dataclass
 class SelectTool:
@@ -440,7 +458,12 @@ class SelectTool:
 
 
 SimpleMessageBody = Union[
-    RobotStatus, JointTrajPtFull, JointFeedback, MotoMotionCtrl, MotoMotionReply
+    RobotStatus,
+    JointTrajPtFull,
+    JointFeedback,
+    MotoMotionCtrl,
+    MotoMotionReply,
+    JointFeedbackEx,
 ]
 
 
@@ -450,6 +473,7 @@ MSG_TYPE_CLS = {
     MsgType.JOINT_FEEDBACK: JointFeedback,
     MsgType.MOTO_MOTION_CTRL: MotoMotionCtrl,
     MsgType.MOTO_MOTION_REPLY: MotoMotionReply,
+    MsgType.MOTO_JOINT_FEEDBACK_EX: JointFeedbackEx,
 }
 
 
@@ -470,8 +494,12 @@ class SimpleMessage:
         prefix = Prefix.from_bytes(bytes_[:4])
         header = Header.from_bytes(bytes_[4:16])
 
-        body_cls = MSG_TYPE_CLS[header.msg_type]
-        assert prefix.length == header.size + body_cls.size
-        body = body_cls.from_bytes(bytes_[16 : 16 + body_cls.size])
+        body: SimpleMessageBody
+        if header.msg_type == MsgType.MOTO_JOINT_FEEDBACK_EX:
+            body = JointFeedbackEx(None, None)
+        else:
+            body_cls = MSG_TYPE_CLS[header.msg_type]
+            assert prefix.length == header.size + body_cls.size
+            body = body_cls.from_bytes(bytes_[16 : 16 + body_cls.size])
 
         return SimpleMessage(header, body)
