@@ -22,4 +22,4 @@ class TelnetConnection:
         self._run_thread.start()
 
     def _run(self) -> None:
-        pass
+        print(self._tn.read_all())
