@@ -17,9 +17,116 @@ from typing import List, Mapping, Tuple
 from moto.motion_connection import MotionConnection
 from moto.state_connection import StateConnection
 from moto.io_connection import IoConnection
-from moto.control_group import ControlGroup
 
 ControlGroupDefinition = Tuple[str, int]
+
+
+class Motion:
+    def __init__(self, motion_connection: MotionConnection) -> None:
+        self._motion_connection: MotionConnection = motion_connection
+
+    def check_motion_ready(self):
+        return self._motion_connection.check_motion_ready()
+
+    def stop_motion(self):
+        return self._motion_connection.stop_motion()
+
+    def start_servos(self):
+        return self._motion_connection.start_servos()
+
+    def stop_servos(self):
+        return self._motion_connection.stop_servos()
+
+    def start_trajectory_mode(self):
+        return self._motion_connection.start_traj_mode()
+
+    def stop_trajectory_mode(self):
+        return self._motion_connection.stop_traj_mode()
+
+
+class State:
+    def __init__(self, state_connection: StateConnection) -> None:
+        self._state_connection: StateConnection = state_connection
+
+    def joint_feedback(self, groupno: int):
+        return self._state_connection.joint_feedback(groupno)
+
+    def joint_feedback_ex(self):
+        return self._state_connection.joint_feedback_ex()
+
+    def add_joint_feedback_msg_callback(self, callback):
+        self._state_connection.add_joint_feedback_msg_callback(callback)
+
+    def add_joint_feedback_ex_msg_callback(self, callback):
+        self._state_connection.add_joint_feedback_ex_msg_callback(callback)
+
+
+class IO:
+    def __init__(self, io_connection: IoConnection) -> None:
+        self._io_connection: IoConnection = io_connection
+
+    def read_bit(self, address: int):
+        return self._io_connection.read_io_bit(address)
+
+    def write_bit(self, address: int, value: int):
+        return self._io_connection.write_io_bit(address, value)
+
+    def read_group(self, address: int):
+        return self._io_connection.read_io_group(address)
+
+    def write_group(self, address: int, value: int):
+        return self._io_connection.write_io_group(address, value)
+
+
+class ControlGroup:
+    def __init__(
+        self,
+        groupid: str,
+        groupno: int,
+        num_joints: int,
+        motion_connection: MotionConnection,
+        state_connection: StateConnection,
+    ):
+        self._groupid: str = groupid
+        self._groupno: int = groupno
+        self._num_joints = num_joints
+        self._motion_connection: MotionConnection = motion_connection
+        self._state_connection: StateConnection = state_connection
+
+    @property
+    def groupid(self) -> str:
+        return self._groupid
+
+    @property
+    def groupno(self) -> int:
+        return self._groupno
+
+    @property
+    def num_joints(self) -> int:
+        return self._num_joints
+
+    @property
+    def position(self):
+        return self.joint_feedback.pos[: self.num_joints]
+
+    @property
+    def velocity(self):
+        return self.joint_feedback.vel[: self.num_joints]
+
+    @property
+    def acceleration(self):
+        return self.joint_feedback.acc[: self.num_joints]
+
+    @property
+    def joint_feedback(self):
+        return self._state_connection.joint_feedback(self._groupno)
+
+    @property
+    def queue_count(self) -> int:
+        return self._motion_connection.check_queue_count(self.groupno)
+
+    def send_trajectory(self, trajectory):
+        pass
 
 
 class Moto:
@@ -40,54 +147,24 @@ class Moto:
                 num_joints,
                 self._motion_connection,
                 self._state_connection,
-                self._io_connection,
             )
 
         self._motion_connection.start()
         self._state_connection.start()
         self._io_connection.start()
 
-    def control_group(self, groupid: str) -> ControlGroup:
-        return self._control_groups[groupid]
+    @property
+    def control_groups(self):
+        return self._control_groups
 
     @property
     def motion(self):
-        return self._motion_connection
+        return Motion(self._motion_connection)
 
     @property
     def state(self):
-        return self._state_connection
+        return State(self._state_connection)
 
     @property
     def io(self):
-        return self._io_connection
-
-    def check_motion_ready(self):
-        return self._motion_connection.check_motion_ready()
-
-    def check_queue_count(self, groupno: int):
-        return self._motion_connection.check_queue_count(groupno)
-
-    def stop_motion(self):
-        return self._motion_connection.stop_motion()
-
-    def start_servos(self):
-        return self._motion_connection.start_servos()
-
-    def stop_servos(self):
-        return self._motion_connection.stop_servos()
-
-    def reset_alarm(self):
-        return self._motion_connection.reset_alarm()
-
-    def start_traj_mode(self):
-        return self._motion_connection.start_traj_mode()
-
-    def stop_traj_mode(self):
-        return self._motion_connection.stop_traj_mode()
-
-    def add_joint_feedback_callback(self, callback):
-        self._state_connection.add_joint_feedback_callback(callback)
-
-    def add_joint_feedback_ex_callback(self, callback):
-        self._state_connection.add_joint_feedback_ex_callback(callback)
+        return IO(self._io_connection)
