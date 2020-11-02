@@ -53,8 +53,8 @@ class Moto:
     def check_motion_ready(self):
         return self._motion_connection.check_motion_ready()
 
-    def check_queue_count(self):
-        return self._motion_connection.check_queue_count()
+    def check_queue_count(self, groupno: int):
+        return self._motion_connection.check_queue_count(groupno)
 
     def stop_motion(self):
         return self._motion_connection.stop_motion()
@@ -73,3 +73,9 @@ class Moto:
 
     def stop_traj_mode(self):
         return self._motion_connection.stop_traj_mode()
+
+    def add_joint_feedback_callback(self, callback):
+        self._state_connection.add_joint_feedback_callback(callback)
+
+    def add_joint_feedback_ex_callback(self, callback):
+        self._state_connection.add_joint_feedback_ex_callback(callback)

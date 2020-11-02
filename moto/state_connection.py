@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List
+from typing import List, Callable
 from copy import deepcopy
 from threading import Thread, Lock
 
 from moto.simple_message_connection import SimpleMessageConnection
-from moto.simple_message import JointFeedback, MsgType, SimpleMessage
+from moto.simple_message import JointFeedback, JointFeedbackEx, MsgType, SimpleMessage
 from moto.control_group import ControlGroup
 
 
@@ -33,12 +33,25 @@ class StateConnection(SimpleMessageConnection):
         ] * ControlGroup.MAX_CONTROLLABLE_GROUPS
         self._lock: Lock = Lock()
 
+        self._joint_feedback_callbacks: List[Callable] = []
+        self._joint_feedback_ex_callbacks: List[Callable] = []
+
         self._worker_thread: Thread = Thread(target=self._worker)
         self._worker_thread.daemon = True
 
     def joint_feedback(self, groupno: int) -> JointFeedback:
         with self._lock:
             return deepcopy(self._joint_feedback[groupno])
+
+    def joint_feedback_ex(self) -> JointFeedbackEx:
+        with self._lock:
+            return deepcopy(self._joint_feedback_ex)
+
+    def add_joint_feedback_callback(self, callback: Callable):
+        self._joint_feedback_callbacks.append(callback)
+
+    def add_joint_feedback_ex_callback(self, callback: Callable):
+        self._joint_feedback_ex_callbacks.append(callback)
 
     def start(self) -> None:
         self._tcp_client.connect()
@@ -52,4 +65,12 @@ class StateConnection(SimpleMessageConnection):
             msg: SimpleMessage = self.recv()
             if msg.header.msg_type == MsgType.JOINT_FEEDBACK:
                 with self._lock:
-                    self._joint_feedback[msg.body.groupno] = msg.body
+                    self._joint_feedback[msg.body.groupno] = deepcopy(msg.body)
+                    for callback in self._joint_feedback_callbacks:
+                        callback(deepcopy(msg.body))
+
+            elif msg.header.msg_type == MsgType.MOTO_JOINT_FEEDBACK_EX:
+                with self._lock:
+                    self._joint_feedback_ex = deepcopy(msg.body)
+                    for callback in self._joint_feedback_ex_callbacks:
+                        callback(deepcopy(msg.body))
