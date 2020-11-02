@@ -87,6 +87,7 @@ class MotoSimulator:
     def start(self) -> None:
         self._motion_server_thread.start()
         self._state_server_thread.start()
+        self._io_server_thread.start()
 
     def stop(self) -> None:
         self._motion_controller_simulator.stop()
@@ -154,7 +155,12 @@ class MotoSimulator:
         print("Stopping state server")
 
     def _run_io_server(self):
-        pass
+        print("Waiting for io connection")
+        conn, addr = self._open_tcp_connection((self._ip_address, self.TCP_PORT_IO))
+        print("Got connection from {}".format(addr))
+        self._io_connection = conn
+        while not self._sig_stop:
+            pass
 
     def _connection_server_run(self):
         while True:
