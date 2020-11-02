@@ -631,6 +631,15 @@ MSG_TYPE_CLS = {
     MsgType.MOTO_MOTION_CTRL: MotoMotionCtrl,
     MsgType.MOTO_MOTION_REPLY: MotoMotionReply,
     MsgType.MOTO_JOINT_FEEDBACK_EX: JointFeedbackEx,
+    MsgType.MOTO_READ_IO_BIT: MotoReadIOBit,
+    MsgType.MOTO_READ_IO_BIT_REPLY: MotoReadIOBitReply,
+    MsgType.MOTO_WRITE_IO_BIT: MotoWriteIOBit,
+    MsgType.MOTO_WRITE_IO_BIT_REPLY: MotoWriteIOBitReply,
+    MsgType.MOTO_READ_IO_GROUP: MotoReadIOGroup,
+    MsgType.MOTO_READ_IO_GROUP_REPLY: MotoReadIOGroupReply,
+    MsgType.MOTO_WRITE_IO_GROUP: MotoWriteIOGroup,
+    MsgType.MOTO_WRITE_IO_GROUP_REPLY: MotoWriteIOGroupReply,
+    MsgType.MOTO_IOCTRL_REPLY: MotoIoCtrlReply,
 }
 
 
