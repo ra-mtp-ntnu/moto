@@ -6,9 +6,10 @@ import numpy as np
 import copy
 
 
-m = Moto("192.168.255.200", [("R1", 6)])
+# m = Moto("192.168.255.200", [("R1", 6)])
+m = Moto("localhost", [("R1", 6)])
 
-r = m.control_group("R1")
+r = m.control_groups["R1"]
 
 
 def send_pts():
@@ -23,7 +24,6 @@ def send_pts():
     r.send_joint_traj_pt_full(pt2)
     r.send_joint_traj_pt_full(pt3)
 
-    print(r.check_queue_count())
 
 
 # print(r.groupid)
