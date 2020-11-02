@@ -21,6 +21,7 @@ from moto.simple_message import (
     MotoMotionCtrl,
     CommandType,
     SimpleMessage,
+    JointTrajPtFull,
 )
 
 
@@ -31,7 +32,7 @@ class MotionConnection(SimpleMessageConnection):
     def __init__(self, ip_address):
         super().__init__((ip_address, self.TCP_PORT_MOTION))
 
-    def _send_and_recv_command_request(
+    def _send_and_recv_motion_request(
         self, command: CommandType, groupno=-1
     ) -> SimpleMessage:
         request = SimpleMessage(
@@ -44,28 +45,39 @@ class MotionConnection(SimpleMessageConnection):
         return response
 
     def check_motion_ready(self):
-        return self._send_and_recv_command_request(CommandType.CHECK_MOTION_READY)
+        return self._send_and_recv_motion_request(CommandType.CHECK_MOTION_READY)
 
     def check_queue_count(self, groupno: int):
-        return self._send_and_recv_command_request(CommandType.CHECK_QUEUE_CNT, groupno)
+        return self._send_and_recv_motion_request(CommandType.CHECK_QUEUE_CNT, groupno)
 
     def stop_motion(self):
-        return self._send_and_recv_command_request(CommandType.STOP_MOTION)
+        return self._send_and_recv_motion_request(CommandType.STOP_MOTION)
 
     def start_servos(self):
-        return self._send_and_recv_command_request(CommandType.START_SERVOS)
+        return self._send_and_recv_motion_request(CommandType.START_SERVOS)
 
     def stop_servos(self):
-        return self._send_and_recv_command_request(CommandType.STOP_SERVOS)
+        return self._send_and_recv_motion_request(CommandType.STOP_SERVOS)
 
     def reset_alarm(self):
-        return self._send_and_recv_command_request(CommandType.RESET_ALARM)
+        return self._send_and_recv_motion_request(CommandType.RESET_ALARM)
 
     def start_traj_mode(self):
-        return self._send_and_recv_command_request(CommandType.START_TRAJ_MODE)
+        return self._send_and_recv_motion_request(CommandType.START_TRAJ_MODE)
 
     def stop_traj_mode(self):
-        return self._send_and_recv_command_request(CommandType.STOP_TRAJ_MODE)
+        return self._send_and_recv_motion_request(CommandType.STOP_TRAJ_MODE)
 
     def disconnect(self):
-        return self._send_and_recv_command_request(CommandType.DISCONNECT)
+        return self._send_and_recv_motion_request(CommandType.DISCONNECT)
+
+    def send_joint_traj_pt_full(self, joint_traj_pt_full: JointTrajPtFull) -> None:
+        msg = SimpleMessage(
+            Header(
+                msg_type=MsgType.JOINT_TRAJ_PT_FULL,
+                comm_type=CommType.TOPIC,
+                reply_type=ReplyType.INVALID,
+            ),
+            joint_traj_pt_full,
+        )
+        self.send(msg)
