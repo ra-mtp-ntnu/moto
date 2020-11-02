@@ -20,7 +20,7 @@ class IoConnection(SimpleMessageConnection):
     TCP_PORT_IO = 50242
 
     def __init__(self, ip_address):
-        pass
+        super().__init__((ip_address, self.TCP_PORT_IO))
 
     def start(self):
-        pass
+        self._tcp_client.connect()
