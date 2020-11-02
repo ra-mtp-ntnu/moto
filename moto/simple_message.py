@@ -435,19 +435,22 @@ class JointFeedbackEx:
 
     @classmethod
     def from_bytes(cls, bytes_):
-        number_of_valid_groups = struct.unpack("i", bytes_[:4])
+        number_of_valid_groups = struct.unpack("i", bytes_[:4])[0]
         bytes_ = bytes_[4:]
         joint_traj_pt_data = []
         for _ in range(number_of_valid_groups):
             joint_traj_pt_data.append(
                 JointFeedback.from_bytes(bytes_[: JointFeedback.size])
             )
-            bytes_ = bytes_[JointFeedback.size:]
+            bytes_ = bytes_[JointFeedback.size :]
 
         return cls(number_of_valid_groups, joint_traj_pt_data)
 
     def to_bytes(self):
-        pass
+        packed: bytes = struct.pack("i", self.number_of_valid_groups)
+        for pt in self.joint_traj_pt_data:
+            packed += pt.to_bytes()
+        return packed
 
 
 @dataclass
@@ -496,7 +499,9 @@ class SimpleMessage:
 
         body: SimpleMessageBody
         if header.msg_type == MsgType.MOTO_JOINT_FEEDBACK_EX:
+            JointFeedbackEx.from_bytes(bytes_[16:])
             body = JointFeedbackEx(None, None)
+
         else:
             body_cls = MSG_TYPE_CLS[header.msg_type]
             assert prefix.length == header.size + body_cls.size
