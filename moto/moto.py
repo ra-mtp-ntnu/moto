@@ -50,6 +50,18 @@ class Moto:
     def control_group(self, groupid: str) -> ControlGroup:
         return self._control_groups[groupid]
 
+    @property
+    def motion(self):
+        return self._motion_connection
+
+    @property
+    def state(self):
+        return self._state_connection
+
+    @property
+    def io(self):
+        return self._io_connection
+
     def check_motion_ready(self):
         return self._motion_connection.check_motion_ready()
 
