@@ -186,7 +186,7 @@ class RobotStatus:
 
     @classmethod
     def from_bytes(cls, bytes_):
-        return cls(*cls.struct_.unpack(bytes_[:cls.size]))
+        return cls(*cls.struct_.unpack(bytes_[: cls.size]))
 
     def to_bytes(self):
         packed = self.struct_.pack(
@@ -241,7 +241,7 @@ class JointTrajPtFull:
 
     @classmethod
     def from_bytes(cls, bytes_):
-        unpacked = cls.struct_.unpack(bytes_[:cls.size])
+        unpacked = cls.struct_.unpack(bytes_[: cls.size])
         groupno = unpacked[0]
         sequence = unpacked[1]
         valid_fields = unpacked[2]
@@ -299,7 +299,7 @@ class JointFeedback:
 
     @classmethod
     def from_bytes(cls, bytes_):
-        unpacked = cls.struct_.unpack(bytes_[:cls.size])
+        unpacked = cls.struct_.unpack(bytes_[: cls.size])
         groupno = unpacked[0]
         valid_fields = unpacked[1]
         time = unpacked[2]
@@ -388,7 +388,7 @@ class MotoMotionReply:
 
     @classmethod
     def from_bytes(cls, bytes_):
-        unpacked = cls.struct_.unpack(bytes_[:cls.size])
+        unpacked = cls.struct_.unpack(bytes_[: cls.size])
         groupno = unpacked[0]
         sequence = unpacked[1]
         command = unpacked[2]
@@ -458,6 +458,160 @@ class SelectTool:
     groupno: int
     tool: int
     sequence: int
+
+
+@dataclass
+class MotoReadIOBit:
+    struct_: ClassVar[Struct] = Struct("I")
+    size = struct_.size
+    address: int
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        unpacked = cls.struct_.unpack(bytes_[: cls.size])
+        address = unpacked[0]
+        return cls(address)
+
+    def to_bytes(self):
+        return self.struct_.pack(self.address)
+
+
+@dataclass
+class MotoReadIOBitReply:
+    struct_: ClassVar[Struct] = Struct("II")
+    size = struct_.size
+    value: int
+    result_code: int
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        unpacked = cls.struct_.unpack(bytes_[: cls.size])
+        value = unpacked[0]
+        result_code = unpacked[1]
+        return cls(value, result_code)
+
+    def to_bytes(self):
+        return self.struct_.pack(self.value, self.result_code)
+
+
+@dataclass
+class MotoWriteIOBit:
+    struct_: ClassVar[Struct] = Struct("II")
+    size = struct_.size
+    address: int
+    value: int
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        unpacked = cls.struct_.unpack(bytes_[: cls.size])
+        address = unpacked[0]
+        value = unpacked[1]
+        return cls(address, value)
+
+    def to_bytes(self):
+        return self.struct_.pack(self.address, self.value)
+
+
+@dataclass
+class MotoWriteIOBitReply:
+    struct_: ClassVar[Struct] = Struct("I")
+    size = struct_.size
+    result_code: int
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        unpacked = cls.struct_.unpack(bytes_[: cls.size])
+        result_code = unpacked[0]
+        return cls(result_code)
+
+    def to_bytes(self):
+        return self.struct_.pack(self.result_code)
+
+
+@dataclass
+class MotoReadIOGroup:
+    struct_: ClassVar[Struct] = Struct("I")
+    size = struct_.size
+    address: int
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        unpacked = cls.struct_.unpack(bytes_[: cls.size])
+        address = unpacked[0]
+        return cls(address)
+
+    def to_bytes(self):
+        return self.struct_.pack(self.address)
+
+
+@dataclass
+class MotoReadIOGroupReply:
+    struct_: ClassVar[Struct] = Struct("II")
+    size = struct_.size
+    value: int
+    result_code: int
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        unpacked = cls.struct_.unpack(bytes_[: cls.size])
+        value = unpacked[0]
+        result_code = unpacked[1]
+        return cls(value, result_code)
+
+    def to_bytes(self):
+        return self.struct_.pack(self.value, self.result_code)
+
+
+@dataclass
+class MotoWriteIOGroup:
+    struct_: ClassVar[Struct] = Struct("II")
+    size = struct_.size
+    address: int
+    value: int
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        unpacked = cls.struct_.unpack(bytes_[: cls.size])
+        address = unpacked[0]
+        value = unpacked[1]
+        return cls(address, value)
+
+    def to_bytes(self):
+        return self.struct_.pack(self.address, self.value)
+
+
+@dataclass
+class MotoWriteIOGroupReply:
+    struct_: ClassVar[Struct] = Struct("I")
+    size = struct_.size
+    result_code: int
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        unpacked = cls.struct_.unpack(bytes_[: cls.size])
+        result_code = unpacked[0]
+        return cls(result_code)
+
+    def to_bytes(self):
+        return self.struct_.pack(self.result_code)
+
+
+@dataclass
+class MotoIoCtrlReply:
+    struct_: ClassVar[Struct] = Struct("Ii")
+    size = struct_.size
+    result: ResultType  # High level result code
+    subcode: Union[int, SubCode]  # More detailed result code (optional)
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        unpacked = cls.struct_.unpack(bytes_[: cls.size])
+        result = unpacked[0]
+        subcode = unpacked[1]
+        return cls(result, subcode)
+
+    def to_bytes(self):
+        return self.struct_.pack(self.result.value, self.subcode)
 
 
 SimpleMessageBody = Union[
