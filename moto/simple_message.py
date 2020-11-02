@@ -186,7 +186,7 @@ class RobotStatus:
 
     @classmethod
     def from_bytes(cls, bytes_):
-        return cls(*cls.struct_.unpack(bytes_))
+        return cls(*cls.struct_.unpack(bytes_[:cls.size]))
 
     def to_bytes(self):
         packed = self.struct_.pack(
@@ -241,7 +241,7 @@ class JointTrajPtFull:
 
     @classmethod
     def from_bytes(cls, bytes_):
-        unpacked = cls.struct_.unpack(bytes_)
+        unpacked = cls.struct_.unpack(bytes_[:cls.size])
         groupno = unpacked[0]
         sequence = unpacked[1]
         valid_fields = unpacked[2]
@@ -299,7 +299,7 @@ class JointFeedback:
 
     @classmethod
     def from_bytes(cls, bytes_):
-        unpacked = cls.struct_.unpack(bytes_)
+        unpacked = cls.struct_.unpack(bytes_[:cls.size])
         groupno = unpacked[0]
         valid_fields = unpacked[1]
         time = unpacked[2]
@@ -388,7 +388,7 @@ class MotoMotionReply:
 
     @classmethod
     def from_bytes(cls, bytes_):
-        unpacked = cls.struct_.unpack(bytes_)
+        unpacked = cls.struct_.unpack(bytes_[:cls.size])
         groupno = unpacked[0]
         sequence = unpacked[1]
         command = unpacked[2]
@@ -497,14 +497,7 @@ class SimpleMessage:
         prefix = Prefix.from_bytes(bytes_[:4])
         header = Header.from_bytes(bytes_[4:16])
 
-        body: SimpleMessageBody
-        if header.msg_type == MsgType.MOTO_JOINT_FEEDBACK_EX:
-            JointFeedbackEx.from_bytes(bytes_[16:])
-            body = JointFeedbackEx(None, None)
-
-        else:
-            body_cls = MSG_TYPE_CLS[header.msg_type]
-            assert prefix.length == header.size + body_cls.size
-            body = body_cls.from_bytes(bytes_[16 : 16 + body_cls.size])
+        body_cls = MSG_TYPE_CLS[header.msg_type]
+        body = body_cls.from_bytes(bytes_[16:])
 
         return SimpleMessage(header, body)
