@@ -14,14 +14,16 @@ r = m.control_group("R1")
 def send_pts():
     x= copy.deepcopy(list(r.joint_feedback.pos))
     pt1 = JointTrajPtFull(0, 0, int("1111",2), 0.0, copy.deepcopy(x), [0.0]*10, [0.0]*10)
-    x[0] += np.deg2rad(30)
+    x[0] -= np.deg2rad(30)
     pt2 = JointTrajPtFull(0, 1, int("1111",2), 10.0, copy.deepcopy(x), [0.0]*10, [0.0]*10)
-    x[0] += np.deg2rad(30)
+    x[0] += np.deg2rad(5)
     pt3 = JointTrajPtFull(0, 2, int("1111",2), 20.0, copy.deepcopy(x), [0.0]*10, [0.0]*10)
 
     r.send_joint_traj_pt_full(pt1)
     r.send_joint_traj_pt_full(pt2)
     r.send_joint_traj_pt_full(pt3)
+
+    print(r.check_queue_count())
 
 
 # print(r.groupid)
