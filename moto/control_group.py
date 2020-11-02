@@ -56,8 +56,23 @@ class ControlGroup:
         return self._num_joints
 
     @property
+    def position(self):
+        return self.joint_feedback.pos[: self.num_joints]
+
+    @property
+    def velocity(self):
+        return self.joint_feedback.vel[: self.num_joints]
+
+    @property
+    def acceleration(self):
+        return self.joint_feedback.acc[: self.num_joints]
+
+    @property
     def joint_feedback(self) -> JointFeedback:
         return self._state_connection.joint_feedback(self._groupno)
+
+    def check_queue_count(self):
+        return self._motion_connection._check_queue_count(self.groupno)
 
     def send_joint_traj_pt_full(self, joint_traj_pt_full: JointTrajPtFull) -> None:
         msg = SimpleMessage(
