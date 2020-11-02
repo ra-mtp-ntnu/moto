@@ -31,12 +31,14 @@ class MotionConnection(SimpleMessageConnection):
     def __init__(self, ip_address):
         super().__init__((ip_address, self.TCP_PORT_MOTION))
 
-    def _send_and_recv_command_request(self, command: CommandType) -> SimpleMessage:
+    def _send_and_recv_command_request(
+        self, command: CommandType, groupno=-1
+    ) -> SimpleMessage:
         request = SimpleMessage(
             Header(
                 MsgType.MOTO_MOTION_CTRL, CommType.SERVICE_REQUEST, ReplyType.INVALID
             ),
-            MotoMotionCtrl(-1, -1, command),
+            MotoMotionCtrl(groupno, -1, command),
         )
         response = self.send_and_recv(request)
         return response
@@ -44,8 +46,8 @@ class MotionConnection(SimpleMessageConnection):
     def check_motion_ready(self):
         return self._send_and_recv_command_request(CommandType.CHECK_MOTION_READY)
 
-    def check_queue_count(self):
-        return self._send_and_recv_command_request(CommandType.CHECK_QUEUE_CNT)
+    def check_queue_count(self, groupno: int):
+        return self._send_and_recv_command_request(CommandType.CHECK_QUEUE_CNT, groupno)
 
     def stop_motion(self):
         return self._send_and_recv_command_request(CommandType.STOP_MOTION)
