@@ -378,7 +378,7 @@ class MotoMotionReply:
     ):
         self.groupno: int = groupno
         self.sequence: int = sequence
-        self.command: CommandType = CommandType(command)
+        self.command: MsgType = MsgType(command)
         self.result: ResultType = ResultType(result)
         try:
             self.subcode: SubCode = SubCode(subcode)
