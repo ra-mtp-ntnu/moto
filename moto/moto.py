@@ -121,8 +121,7 @@ class ControlGroup:
     def joint_feedback(self):
         return self._state_connection.joint_feedback(self._groupno)
 
-    @property
-    def queue_count(self) -> int:
+    def check_queue_count(self) -> int:
         return self._motion_connection.check_queue_count(self.groupno)
 
     def send_trajectory(self, trajectory):
