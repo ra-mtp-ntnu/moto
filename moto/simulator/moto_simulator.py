@@ -107,26 +107,32 @@ class MotionServer:
         print("[motion_server]: Got connection from {}".format(addr))
         self._conn = conn
         while not self._sig_stop:
-            pass
-            # msg = SimpleMessage.from_bytes(self._conn.recv(1024))
-            # print(msg)
-            # if msg.header.msg_type == MsgType.MOTO_MOTION_CTRL:
-            #     reply = SimpleMessage(
-            #         Header(
-            #             MsgType.MOTO_MOTION_REPLY,
-            #             CommType.SERVICE_REPLY,
-            #             ReplyType.SUCCESS,
-            #         ),
-            #         MotoMotionReply(-1, -1, msg.body.command, ResultType.SUCCESS, 0),
-            #     )
-            #     self._motion_connection.send(reply.to_bytes())
+            msg = SimpleMessage.from_bytes(self._conn.recv(1024))
+            if msg.header.msg_type == MsgType.MOTO_MOTION_CTRL:
+                reply = SimpleMessage(
+                    Header(
+                        MsgType.MOTO_MOTION_REPLY,
+                        CommType.SERVICE_REPLY,
+                        ReplyType.SUCCESS,
+                    ),
+                    MotoMotionReply(
+                        -1,
+                        -1,
+                        msg.header.msg_type,
+                        ResultType.SUCCESS,
+                        msg.body.command.value,
+                    ),
+                )
+                self._conn.send(reply.to_bytes())
 
-            # if msg.header.msg_type == MsgType.JOINT_TRAJ_PT_FULL:
-            #     pt = JointTrajectoryPoint()
-            #     pt.time_from_start = copy.deepcopy(msg.body.time)
-            #     pt.positions = copy.deepcopy(msg.body.pos)
-            #     pt.velocities = copy.deepcopy(msg.body.vel)
-            #     self._control_groups[msg.body.groupno].add_motion_waypoint(pt)
+            elif msg.header.msg_type == MsgType.JOINT_TRAJ_PT_FULL:
+                groupno = msg.body.groupno
+                pt = JointTrajectoryPoint()
+                pt.time_from_start = copy.deepcopy(msg.body.time)
+                pt.positions = copy.deepcopy(
+                    msg.body.pos[: self._control_groups[groupno].num_joints]
+                )
+                self._control_groups[msg.body.groupno].add_motion_waypoint(pt)
 
 
 class StateServer:
@@ -154,6 +160,9 @@ class StateServer:
     def start(self) -> None:
         self._worker_thread.start()
 
+    def stop(self) -> None:
+        self._sig_stop = True
+
     def _worker(self) -> None:
         print("[state_server]: Waiting for connection")
         conn, addr = open_tcp_connection((self._ip_address, self.TCP_PORT_STATE))
@@ -167,7 +176,7 @@ class StateServer:
                         control_group.groupno,
                         int("0011", 2),
                         0.0,
-                        control_group.position
+                        list(control_group.position)
                         + [0.0] * (10 - control_group.num_joints),
                         [0.0] * 10,
                         [0.0] * 10,
@@ -177,13 +186,37 @@ class StateServer:
             time.sleep(1.0 / self._rate)
 
 
-class MotoSimulator:
-
-    TCP_PORT_IO: int = 50242
+class IoServer:
 
     MAX_IO_CONNECTIONS: int = 1
-    MAX_STATE_CONNECTIONS: int = 4
+    TCP_PORT_IO: int = 50242
 
+    def __init__(self, ip_address: str) -> None:
+        self._ip_address: str = ip_address
+        self._conn = None
+
+        self._lock: Lock = Lock()
+        self._sig_stop: bool = False
+
+        self._worker_thread = Thread(target=self._worker)
+        self._worker_thread.daemon = True
+
+    def start(self) -> None:
+        self._worker_thread.start()
+
+    def stop(self) -> None:
+        self._sig_stop = True
+
+    def _worker(self) -> None:
+        print("[io_server]: Waiting for connection")
+        conn, addr = open_tcp_connection((self._ip_address, self.TCP_PORT_IO))
+        print("[io_server]: Got connection from {}".format(addr))
+        self._conn = conn
+        while not self._sig_stop:
+            pass
+
+
+class MotoSimulator:
     def __init__(self, ip_address: str, control_groups: List[ControlGroupSim]):
         self._ip_address: str = ip_address
         self._control_groups: List[ControlGroupSim] = control_groups
@@ -196,25 +229,16 @@ class MotoSimulator:
             self._ip_address, self._control_groups
         )
 
-        self._io_server_thread = Thread(target=self._run_io_server)
-        self._io_server_thread.daemon = True
-
-        self._state_lock: Lock = Lock()
+        self._io_server: IoServer = IoServer(self._ip_address)
 
         self._sig_stop: bool = False
 
     def start(self) -> None:
         self._motion_server.start()
         self._state_server.start()
-        self._io_server_thread.start()
+        self._io_server.start()
 
     def stop(self) -> None:
-        self._sig_stop = True
-
-    def _run_io_server(self):
-        print("[io_server]: Waiting for io connection")
-        conn, addr = open_tcp_connection((self._ip_address, self.TCP_PORT_IO))
-        print("[io_server]: Got connection from {}".format(addr))
-        self._io_connection = conn
-        while not self._sig_stop:
-            pass
+        self._motion_server.stop()
+        self._state_server.stop()
+        self._io_server.stop()
