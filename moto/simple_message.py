@@ -266,7 +266,7 @@ class JointTrajPtFull:
 
 @dataclass
 class JointFeedback:
-    struct_: ClassVar[Struct] = Struct("2i{}f".format(3 * ROS_MAX_JOINT + 1))
+    struct_: ClassVar[Struct] = Struct("iif10f10f10f")
     size: ClassVar[int] = struct_.size
 
     # Robot/group ID;  0 = 1st robot
