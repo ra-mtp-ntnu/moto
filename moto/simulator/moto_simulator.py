@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Tuple, Any
+from moto.moto import State
+from typing import List, Tuple, Any, Mapping
 
 import socket
 from threading import Thread, Lock
@@ -41,127 +42,179 @@ from moto.simulator.motion_controller_simulator import (
 )
 
 
+def open_tcp_connection(address: Address) -> Tuple[socket.socket, Any]:
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    server.bind(address)
+    server.listen()
+    return server.accept()
+
+
+class ControlGroupSim:
+    def __init__(
+        self, groupno, num_joints, initial_joint_state, update_rate=100.0
+    ) -> None:
+        self._groupno = groupno
+        self._num_joints = num_joints
+        self._initial_joint_state = initial_joint_state
+        self._update_rate = update_rate
+        self._motion_controller_simulator = MotionControllerSimulator(
+            self._num_joints, self._initial_joint_state, self._update_rate
+        )
+
+    @property
+    def groupno(self):
+        return self._groupno
+
+    @property
+    def num_joints(self):
+        return self._num_joints
+
+    def add_motion_waypoint(self, waypoint: JointTrajectoryPoint):
+        self._motion_controller_simulator.add_motion_waypoint(waypoint)
+
+    @property
+    def position(self):
+        return self._motion_controller_simulator.get_joint_positions()
+
+
+class MotionServer:
+
+    MAX_MOTION_CONNECTIONS: int = 1
+    TCP_PORT_MOTION: int = 50240
+
+    def __init__(self, ip_address: str, control_groups: List[ControlGroupSim]):
+        self._ip_address: str = ip_address
+        self._conn = None
+
+        self._control_groups: Mapping[str, ControlGroupSim] = {}
+        for control_group in control_groups:
+            self._control_groups[control_group.groupno] = control_group
+
+        self._lock: Lock = Lock()
+        self._sig_stop: bool = False
+
+        self._worker_thread = Thread(target=self._worker)
+        self._worker_thread.daemon = True
+
+    def start(self) -> None:
+        self._worker_thread.start()
+
+    def _worker(self) -> None:
+        print("[motion_server]: Waiting for connection")
+        conn, addr = open_tcp_connection((self._ip_address, self.TCP_PORT_MOTION))
+        print("[motion_server]: Got connection from {}".format(addr))
+        self._conn = conn
+        while not self._sig_stop:
+            pass
+            # msg = SimpleMessage.from_bytes(self._conn.recv(1024))
+            # print(msg)
+            # if msg.header.msg_type == MsgType.MOTO_MOTION_CTRL:
+            #     reply = SimpleMessage(
+            #         Header(
+            #             MsgType.MOTO_MOTION_REPLY,
+            #             CommType.SERVICE_REPLY,
+            #             ReplyType.SUCCESS,
+            #         ),
+            #         MotoMotionReply(-1, -1, msg.body.command, ResultType.SUCCESS, 0),
+            #     )
+            #     self._motion_connection.send(reply.to_bytes())
+
+            # if msg.header.msg_type == MsgType.JOINT_TRAJ_PT_FULL:
+            #     pt = JointTrajectoryPoint()
+            #     pt.time_from_start = copy.deepcopy(msg.body.time)
+            #     pt.positions = copy.deepcopy(msg.body.pos)
+            #     pt.velocities = copy.deepcopy(msg.body.vel)
+            #     self._control_groups[msg.body.groupno].add_motion_waypoint(pt)
+
+
+class StateServer:
+
+    MAX_STATE_CONNECTIONS: int = 4
+    TCP_PORT_STATE: int = 50241
+
+    def __init__(
+        self, ip_address: str, control_groups: List[ControlGroupSim], rate: float = 25
+    ):
+        self._ip_address: str = ip_address
+        self._conn = None
+
+        self._control_groups = control_groups
+        self._rate = rate
+
+        self._position = [0.0] * 10
+
+        self._lock: Lock = Lock()
+        self._sig_stop: bool = False
+
+        self._worker_thread = Thread(target=self._worker)
+        self._worker_thread.daemon = True
+
+    def start(self) -> None:
+        self._worker_thread.start()
+
+    def _worker(self) -> None:
+        print("[state_server]: Waiting for connection")
+        conn, addr = open_tcp_connection((self._ip_address, self.TCP_PORT_STATE))
+        print("[state_server]: Got connection from {}".format(addr))
+        self._conn = conn
+        while not self._sig_stop:
+            for control_group in self._control_groups:
+                msg = SimpleMessage(
+                    Header(MsgType.JOINT_FEEDBACK, CommType.TOPIC, ReplyType.INVALID),
+                    JointFeedback(
+                        control_group.groupno,
+                        int("0011", 2),
+                        0.0,
+                        control_group.position
+                        + [0.0] * (10 - control_group.num_joints),
+                        [0.0] * 10,
+                        [0.0] * 10,
+                    ),
+                )
+                self._conn.sendall(msg.to_bytes())
+            time.sleep(1.0 / self._rate)
+
+
 class MotoSimulator:
 
-    TCP_PORT_MOTION: int = 50240
-    TCP_PORT_STATE: int = 50241
     TCP_PORT_IO: int = 50242
 
     MAX_IO_CONNECTIONS: int = 1
-    MAX_MOTION_CONNECTIONS: int = 1
     MAX_STATE_CONNECTIONS: int = 4
 
-    def __init__(self, ip_address: str = "localhost"):
+    def __init__(self, ip_address: str, control_groups: List[ControlGroupSim]):
         self._ip_address: str = ip_address
+        self._control_groups: List[ControlGroupSim] = control_groups
 
-        self._motion_connection = None
-        self._state_connection = None
-        self._io_connection = None
+        self._motion_server: MotionServer = MotionServer(
+            self._ip_address, self._control_groups
+        )
 
-        self._motion_server_thread = Thread(target=self._run_motion_server)
-        self._motion_server_thread.daemon = True
-
-        self._state_server_thread = Thread(target=self._run_state_server)
-        self._state_server_thread.daemon = True
+        self._state_server: StateServer = StateServer(
+            self._ip_address, self._control_groups
+        )
 
         self._io_server_thread = Thread(target=self._run_io_server)
         self._io_server_thread.daemon = True
-
-        self._groupno: int = 0
-        self._valid_fields = int("1111", 2)
-        self._time = 0.0
-        self._rate = 25.0
-        self._pos: Vector = [0.0] * 10
-        self._vel: Vector = [0.0] * 10
-        self._acc: Vector = [0.0] * 10
-
-        self._num_joints = 6
-        self._motion_controller_simulator = MotionControllerSimulator(
-            self._num_joints, self._pos[: self._num_joints]
-        )
 
         self._state_lock: Lock = Lock()
 
         self._sig_stop: bool = False
 
     def start(self) -> None:
-        self._motion_server_thread.start()
-        self._state_server_thread.start()
+        self._motion_server.start()
+        self._state_server.start()
         self._io_server_thread.start()
 
     def stop(self) -> None:
-        self._motion_controller_simulator.stop()
         self._sig_stop = True
 
-    def _open_tcp_connection(self, address: Address) -> Tuple[socket.socket, Any]:
-        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        server.bind(address)
-        server.listen()
-        return server.accept()
-
-    def _run_motion_server(self) -> None:
-        print("Waiting for motion connection")
-        conn, addr = self._open_tcp_connection((self._ip_address, self.TCP_PORT_MOTION))
-        print("Got connection from {}".format(addr))
-        self._motion_connection = conn
-        while not self._sig_stop:
-            msg = SimpleMessage.from_bytes(self._motion_connection.recv(1024))
-            if msg.header.msg_type == MsgType.MOTO_MOTION_CTRL:
-                reply = SimpleMessage(
-                    Header(
-                        MsgType.MOTO_MOTION_REPLY,
-                        CommType.SERVICE_REPLY,
-                        ReplyType.SUCCESS,
-                    ),
-                    MotoMotionReply(-1, -1, msg.body.command, ResultType.SUCCESS, 0),
-                )
-                self._motion_connection.send(reply.to_bytes())
-
-            elif msg.header.msg_type == MsgType.JOINT_TRAJ_PT_FULL:
-                pt = JointTrajectoryPoint()
-                pt.time_from_start = copy.deepcopy(msg.body.time)
-                pt.positions = copy.deepcopy(msg.body.pos)
-                pt.velocities = copy.deepcopy(msg.body.vel)
-                self._motion_controller_simulator.add_motion_waypoint(pt)
-
-        print("stopping motion connection")
-
-    def _run_state_server(self):
-        print("Waiting for state connection")
-        conn, addr = self._open_tcp_connection((self._ip_address, self.TCP_PORT_STATE))
-        print("Got connection from {}".format(addr))
-        self._state_connection = conn
-        while not self._sig_stop:
-            with self._state_lock:
-                self._pos[
-                    : self._num_joints
-                ] = self._motion_controller_simulator.get_joint_positions()
-                msg = SimpleMessage(
-                    Header(MsgType.JOINT_FEEDBACK, CommType.TOPIC, ReplyType.INVALID),
-                    JointFeedback(
-                        self._groupno,
-                        self._valid_fields,
-                        self._time,
-                        self._pos,
-                        self._vel,
-                        self._acc,
-                    ),
-                )
-                self._state_connection.sendall(msg.to_bytes())
-                time.sleep(1.0 / self._rate)
-
-        print("Stopping state server")
-
     def _run_io_server(self):
-        print("Waiting for io connection")
-        conn, addr = self._open_tcp_connection((self._ip_address, self.TCP_PORT_IO))
-        print("Got connection from {}".format(addr))
+        print("[io_server]: Waiting for io connection")
+        conn, addr = open_tcp_connection((self._ip_address, self.TCP_PORT_IO))
+        print("[io_server]: Got connection from {}".format(addr))
         self._io_connection = conn
         while not self._sig_stop:
-            pass
-
-    def _connection_server_run(self):
-        while True:
             pass
