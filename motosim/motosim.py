@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from moto.moto import State
 from typing import List, Tuple, Any, Mapping
 
 import socket
@@ -36,7 +35,7 @@ from moto.simple_message import (
     MotoMotionReply,
 )
 
-from moto.simulator.motion_controller_simulator import (
+from motosim.motion_controller_simulator import (
     MotionControllerSimulator,
     JointTrajectoryPoint,
 )
@@ -100,6 +99,9 @@ class MotionServer:
 
     def start(self) -> None:
         self._worker_thread.start()
+
+    def stop(self) -> None:
+        self._sig_stop = True
 
     def _worker(self) -> None:
         print("[motion_server]: Waiting for connection")
@@ -216,7 +218,7 @@ class IoServer:
             pass
 
 
-class MotoSimulator:
+class MotoSim:
     def __init__(self, ip_address: str, control_groups: List[ControlGroupSim]):
         self._ip_address: str = ip_address
         self._control_groups: List[ControlGroupSim] = control_groups
