@@ -22,6 +22,7 @@ class TcpClient:
     def __init__(self, address: Address):
         self._address: Address = address
         self._socket: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 
     def connect(self) -> None:
         self._socket.connect(self._address)
