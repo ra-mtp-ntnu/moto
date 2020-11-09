@@ -18,22 +18,8 @@ from dataclasses import dataclass
 
 @dataclass
 class JointState:
-    name: List[str]
-    position: List[float]
-    velocity: List[float]
-    acceleration: List[float]
-    effort: List[float]
-
-    def __init__(
-        self,
-        name: List[str] = [],
-        position: List[float] = [],
-        velocity: List[float] = [],
-        acceleration: List[float] = [],
-        effort: List[float] = [],
-    ) -> None:
-        self.name = name
-        self.position = position
-        self.velocity = velocity
-        self.acceleration = acceleration
-        self.effort = effort
+    name: List[str] = []
+    position: List[float] = []
+    velocity: List[float] = []
+    acceleration: List[float] = []
+    effort: List[float] = []

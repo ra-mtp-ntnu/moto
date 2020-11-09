@@ -18,34 +18,14 @@ from dataclasses import dataclass
 
 @dataclass
 class JointTrajectoryPoint:
-    position: List[float]
-    velocity: List[float]
-    acceleration: List[float]
-    effort: List[float]
-    time_from_start: float
-
-    def __init__(
-        self,
-        position: List[float] = [],
-        velocity: List[float] = [],
-        acceleration: List[float] = [],
-        effort: List[float] = [],
-        time_from_start: float = 0.0,
-    ) -> None:
-        self.position = position
-        self.velocity = velocity
-        self.acceleration = acceleration
-        self.effort = effort
-        self.time_from_start = time_from_start
+    position: List[float] = []
+    velocity: List[float] = []
+    acceleration: List[float] = []
+    effort: List[float] = []
+    time_from_start: float = 0.0
 
 
 @dataclass
 class JointTrajectory:
-    joint_names: List[str]
-    points: List[JointTrajectoryPoint]
-
-    def __init__(
-        self, joint_names: List[str] = [], points: List[JointTrajectoryPoint] = []
-    ) -> None:
-        self.joint_names = joint_names
-        self.points = points
+    joint_names: List[str] = []
+    points: List[JointTrajectoryPoint] = []
