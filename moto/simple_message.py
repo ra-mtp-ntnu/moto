@@ -88,6 +88,7 @@ class CommandType(Enum):
     START_TRAJ_MODE = 200121
     STOP_TRAJ_MODE = 200122
     DISCONNECT = 200130
+    REALTIME_MOTION_CMD = 200140
 
 
 class ResultType(Enum):
@@ -378,8 +379,14 @@ class MotoMotionReply:
     ):
         self.groupno: int = groupno
         self.sequence: int = sequence
-        self.command: MsgType = MsgType(command)
-        self.result: ResultType = ResultType(result)
+        try:
+            self.command: MsgType = MsgType(command)
+        except:
+            self.command = command
+        try:
+            self.result: ResultType = ResultType(result)
+        except:
+            self.result = result
         try:
             self.subcode: SubCode = SubCode(subcode)
         except:

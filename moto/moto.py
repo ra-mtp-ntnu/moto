@@ -17,6 +17,7 @@ from typing import List, Mapping, Tuple
 from moto.motion_connection import MotionConnection
 from moto.state_connection import StateConnection
 from moto.io_connection import IoConnection
+from moto.real_time_motion_connection import RealTimeMotionConnection
 
 ControlGroupDefinition = Tuple[str, int]
 
@@ -24,6 +25,9 @@ ControlGroupDefinition = Tuple[str, int]
 class Motion:
     def __init__(self, motion_connection: MotionConnection) -> None:
         self._motion_connection: MotionConnection = motion_connection
+
+    def connect(self):
+        self._motion_connection.start()
 
     def check_motion_ready(self):
         return self._motion_connection.check_motion_ready()
@@ -48,6 +52,9 @@ class State:
     def __init__(self, state_connection: StateConnection) -> None:
         self._state_connection: StateConnection = state_connection
 
+    def connect(self):
+        self._state_connection.start()
+
     def joint_feedback(self, groupno: int):
         return self._state_connection.joint_feedback(groupno)
 
@@ -65,6 +72,9 @@ class IO:
     def __init__(self, io_connection: IoConnection) -> None:
         self._io_connection: IoConnection = io_connection
 
+    def connect(self):
+        self._io_connection.start()
+
     def read_bit(self, address: int):
         return self._io_connection.read_io_bit(address)
 
@@ -76,6 +86,14 @@ class IO:
 
     def write_group(self, address: int, value: int):
         return self._io_connection.write_io_group(address, value)
+
+
+class RealTimeMotion:
+    def __init__(self, real_time_motion_connection: RealTimeMotionConnection) -> None:
+        self._real_time_motion_connection: RealTimeMotionConnection = real_time_motion_connection
+
+    def connect(self):
+        self._real_time_motion_connection.start()
 
 
 class ControlGroup:
@@ -129,13 +147,24 @@ class ControlGroup:
 
 
 class Moto:
-    def __init__(self, robot_ip: str, control_group_defs: List[ControlGroupDefinition]):
+    def __init__(
+        self,
+        robot_ip: str,
+        control_group_defs: List[ControlGroupDefinition],
+        start_motion_connection: bool = False,
+        start_state_connection: bool = False,
+        start_io_connection: bool = False,
+        start_real_time_connection: bool = False,
+    ):
         self._robot_ip: str = robot_ip
         self._control_group_defs: List[ControlGroupDefinition] = control_group_defs
 
         self._motion_connection: MotionConnection = MotionConnection(self._robot_ip)
         self._state_connection: StateConnection = StateConnection(self._robot_ip)
         self._io_connection: IoConnection = IoConnection(self._robot_ip)
+        self._real_time_motion_connection: RealTimeMotionConnection = RealTimeMotionConnection(
+            self._robot_ip
+        )
 
         self._control_groups: Mapping[str, ControlGroup] = {}
         for groupno, control_group_def in enumerate(self._control_group_defs):
@@ -148,9 +177,12 @@ class Moto:
                 self._state_connection,
             )
 
-        self._motion_connection.start()
-        self._state_connection.start()
-        self._io_connection.start()
+        if start_motion_connection:
+            self._motion_connection.start()
+        if start_state_connection:
+            self._state_connection.start()
+        if start_io_connection:
+            self._io_connection.start()
 
     @property
     def control_groups(self):
@@ -167,3 +199,8 @@ class Moto:
     @property
     def io(self):
         return IO(self._io_connection)
+
+    @property
+    def rt(self):
+        return RealTimeMotion(self._real_time_motion_connection)
+
