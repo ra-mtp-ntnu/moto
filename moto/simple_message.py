@@ -64,6 +64,9 @@ class MsgType(Enum):
 
     MOTO_GET_DH_PARAMETERS = 2020
 
+    MOTO_REALTIME_MOTION_JOINT_STATE_EX = 2030
+    MOTO_REALTIME_MOTION_JOINT_COMMAND_EX = 2031
+
 
 class CommType(Enum):
     INVALID = 0
@@ -88,7 +91,6 @@ class CommandType(Enum):
     START_TRAJ_MODE = 200121
     STOP_TRAJ_MODE = 200122
     DISCONNECT = 200130
-    REALTIME_MOTION_CMD = 200140
 
 
 class ResultType(Enum):
@@ -422,7 +424,7 @@ class JointTrajPtExData:
     # Bit-mask indicating which “optional” fields are filled with data. 1=time, 2=position, 4=velocity, 8=acceleration
     valid_fields: FlagsValidFields
     time: float  # Timestamp associated with this trajectory point; Units: in seconds
-    # Desired joint positions in radian.  Base to Tool joint order
+    # Desired joint positions in radian. Base to Tool joint order
     pos: List[float]
     vel: List[float]  # Desired joint velocities in radian/sec.
     acc: List[float]  # Desired joint accelerations in radian/sec^2.
@@ -621,13 +623,142 @@ class MotoIoCtrlReply:
         return self.struct_.pack(self.result.value, self.subcode)
 
 
+class MotoRealTimeMotionMode(Enum):
+    IDLE = 0
+    JOINT_POSITION = 1
+    JOINT_VELOCITY = 2
+
+
+@dataclass
+class MotoRealTimeMotionJointStateExData:
+    struct_: ClassVar[Struct] = Struct("i10f10f")
+    size: ClassVar[int] = struct_.size
+
+    # Robot/group ID;  0 = 1st robot
+    groupno: int
+    # Feedback joint positions in radian. Base to Tool joint order
+    pos: List[float]
+    # Feedback joint velocities in radian/sec.
+    vel: List[float]
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        unpacked = cls.struct_.unpack(bytes_[: cls.size])
+        groupno = unpacked[0]
+        pos = unpacked[1:11]
+        vel = unpacked[11:21]
+        return cls(groupno, pos, vel)
+
+    def to_bytes(self):
+        return self.struct_.pack(self.groupno, *self.pos, *self.vel)
+
+
+@dataclass
+class MotoRealTimeMotionJointStateEx:
+    # Message id that the external controller must echo back in the command
+    message_id: int
+    # Control mode (idle, joint position, or joint velocity)
+    mode: MotoRealTimeMotionMode
+    number_of_valid_groups: int # Max 4 groups
+    joint_state_data: List[MotoRealTimeMotionJointStateExData]
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        message_id, mode, number_of_valid_groups = struct.unpack("3i", bytes_[:12])[0]
+        bytes_ = bytes_[12:]
+        joint_state_data = []
+        for _ in range(number_of_valid_groups):
+            joint_state_data.append(
+                MotoRealTimeMotionJointStateExData.from_bytes(
+                    bytes[: MotoRealTimeMotionJointStateExData.size]
+                )
+            )
+            bytes_ = bytes_[MotoRealTimeMotionJointStateExData.size :]
+
+        return cls(
+            message_id,
+            MotoRealTimeMotionMode(mode),
+            number_of_valid_groups,
+            joint_state_data,
+        )
+
+    def to_bytes(self):
+        packed: bytes = struct.pack(
+            "3i", self.message_id, self.mode.value, self.number_of_valid_groups
+        )
+        for group_joint_state_data in self.joint_state_data:
+            packed += group_joint_state_data.to_bytes()
+        return packed
+
+
+class MotoRealTimeMotionJointCommandExData:
+    struct_: ClassVar[Struct] = Struct("i10f")
+    size: ClassVar[int] = struct_.size
+
+    # Robot/group ID;  0 = 1st robot
+    groupno: int
+    # Commanded joint positions or velocities. Depends on control mode.
+    command: List[float]
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        unpacked = cls.struct_.unpack(bytes_[: cls.size])
+        groupno = unpacked[0]
+        command = unpacked[1:]
+        return cls(groupno, command)
+
+    def to_bytes(self):
+        return self.struct_.pack(self.groupno, self.command)
+
+
+class MotoRealTimeMotionJointCommandEx:
+    # Message id from the state message that the external controller must echo back in the command
+    message_id: int
+    number_of_valid_groups: int
+    joint_command_data: List[MotoRealTimeMotionJointCommandExData]
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        message_id, number_of_valid_groups = struct.unpack("2i", bytes_[:8])[0]
+        bytes_ = bytes_[8:]
+        joint_command_data = []
+        for _ in range(number_of_valid_groups):
+            joint_command_data.append(
+                MotoRealTimeMotionJointCommandExData.from_bytes(
+                    bytes[: MotoRealTimeMotionJointCommandExData.size]
+                )
+            )
+            bytes_ = bytes_[MotoRealTimeMotionJointCommandExData.size :]
+
+        return cls(message_id, number_of_valid_groups, joint_command_data,)
+
+    def to_bytes(self):
+        packed: bytes = struct.pack("2i", self.message_id, self.number_of_valid_groups)
+        for group_joint_command_data in self.joint_command_data:
+            packed += group_joint_command_data.to_bytes()
+        return packed
+
+
 SimpleMessageBody = Union[
     RobotStatus,
     JointTrajPtFull,
     JointFeedback,
     MotoMotionCtrl,
     MotoMotionReply,
+    JointTrajPtFullEx,
     JointFeedbackEx,
+    SelectTool,
+    MotoReadIOBit,
+    MotoReadIOBitReply,
+    MotoWriteIOBit,
+    MotoWriteIOBitReply,
+    MotoReadIOGroup,
+    MotoReadIOGroupReply,
+    MotoWriteIOGroup,
+    MotoWriteIOGroupReply,
+    MotoIoCtrlReply,
+    MotoRealTimeMotionJointStateEx,
+    MotoRealTimeMotionJointCommandEx,
 ]
 
 
@@ -647,6 +778,8 @@ MSG_TYPE_CLS = {
     MsgType.MOTO_WRITE_IO_GROUP: MotoWriteIOGroup,
     MsgType.MOTO_WRITE_IO_GROUP_REPLY: MotoWriteIOGroupReply,
     MsgType.MOTO_IOCTRL_REPLY: MotoIoCtrlReply,
+    MsgType.MOTO_REALTIME_MOTION_JOINT_STATE_EX: MotoRealTimeMotionJointStateEx,
+    MsgType.MOTO_REALTIME_MOTION_JOINT_COMMAND_EX: MotoRealTimeMotionJointCommandEx,
 }
 
 
