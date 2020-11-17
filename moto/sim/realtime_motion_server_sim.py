@@ -49,7 +49,7 @@ class RealTimeMotionServerSim:
         rt_server_ip_address: str = "localhost",
         mode: MotoRealTimeMotionMode = MotoRealTimeMotionMode.JOINT_VELOCITY,
         control_groups: List[ControlGroup] = [ControlGroup(0, 6, [0.0] * 6)],
-        update_rate: int = 250
+        update_rate: int = 250,
     ) -> None:
 
         self._ip_address: str = ip_address
@@ -58,6 +58,8 @@ class RealTimeMotionServerSim:
         self._num_control_groups = len(control_groups)
         assert self._num_control_groups <= 4, "Max 4 control groups can be used at once"
         self._control_groups: List[ControlGroup] = control_groups
+
+        self._mode = mode
 
         self._lock: Lock = Lock()
         self._sig_stop: bool = False
@@ -69,6 +71,8 @@ class RealTimeMotionServerSim:
         self._rt_worker_thread = Thread(target=self._rt_worker)
         self._rt_worker_thread.daemon = True
 
+        self._sig_stop_rt: bool = False
+
         self._update_duration: float = 1.0 / update_rate
 
     def start(self) -> None:
@@ -78,18 +82,43 @@ class RealTimeMotionServerSim:
         self._sig_stop = True
 
     def _worker(self) -> None:
-        logging.info("Waiting for connection")
-        conn, addr = open_tcp_connection(
-            (self._ip_address, self.TCP_PORT_REALTIME_MOTION)
-        )
-        logging.info("Got connection from {}".format(addr))
-        self._conn = conn
-
-        # Start RT motion thread automatically on connection.
-        self._rt_worker_thread.start()
-
         while not self._sig_stop:
-            pass
+            logging.info("Waiting for connection")
+            conn, addr = open_tcp_connection(
+                (self._ip_address, self.TCP_PORT_REALTIME_MOTION)
+            )
+            logging.info("Got connection from {}".format(addr))
+            self._conn = conn
+
+            while True:
+
+                try:
+                    bytes_ = self._conn.recv(self.BUFSIZE)
+                    if not bytes_:
+                        break
+
+                    req = SimpleMessage.from_bytes(bytes_)
+                    if req.header.msg_type == MsgType.MOTO_MOTION_CTRL:
+                        if req.body.command == CommandType.START_REALTIME_MOTION_MODE:
+                            self._rt_worker_thread.start()
+
+                        if req.body.command == CommandType.STOP_REALTIME_MOTION_MODE:
+                            self._sig_stop_rt = True
+
+                    res = SimpleMessage(
+                        Header(
+                            MsgType.MOTO_MOTION_REPLY,
+                            CommType.SERVICE_REQUEST,
+                            ReplyType.SUCCESS,
+                        ),
+                        MotoMotionReply(
+                            -1, -1, req.body.command, ResultType.SUCCESS, 0,
+                        ),
+                    )
+
+                    self._conn.send(res.to_bytes())
+                except:
+                    pass
 
     def _rt_worker(self) -> None:
         logging.debug("Starting RT motion thread")
@@ -102,7 +131,7 @@ class RealTimeMotionServerSim:
         )
         udp_client: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-        while not self._sig_stop:
+        while not self._sig_stop_rt:
 
             state_msg = SimpleMessage(
                 Header(
@@ -112,7 +141,7 @@ class RealTimeMotionServerSim:
                 ),
                 MotoRealTimeMotionJointStateEx(
                     message_id,
-                    MotoRealTimeMotionMode.JOINT_POSITION,
+                    self._mode,
                     self._num_control_groups,
                     [
                         MotoRealTimeMotionJointStateExData(
@@ -124,13 +153,39 @@ class RealTimeMotionServerSim:
             )
 
             udp_client.sendto(state_msg.to_bytes(), rt_server_addr)
-            bytes_, addr = udp_client.recvfrom(self.BUFSIZE)
+            bytes_, _ = udp_client.recvfrom(self.BUFSIZE)
             command_msg = SimpleMessage.from_bytes(bytes_)
             command: MotoRealTimeMotionJointCommandEx = command_msg.body
 
-            print(command)
+            assert command_msg.body.message_id == state_msg.body.message_id
+
+            for control_group, joint_command_data in zip(
+                self._control_groups, command.joint_command_data
+            ):
+                assert control_group.groupno == joint_command_data.groupno
+
+                pos, vel = control_group.state
+
+                if self._mode == MotoRealTimeMotionMode.IDLE:
+                    pass
+
+                elif self._mode == MotoRealTimeMotionMode.JOINT_POSITION:
+                    pos_cmd = joint_command_data.command[: control_group.num_joints]
+                    pos = pos_cmd
+                    for k in range(control_group.num_joints):
+                        vel[k] = (pos[k] - pos_cmd[k]) / self._update_duration
+
+                elif self._mode == MotoRealTimeMotionMode.JOINT_VELOCITY:
+                    for k in range(control_group.num_joints):
+                        vel_cmd = joint_command_data.command[k]
+                        pos[k] += vel_cmd * self._update_duration
+                        vel[k] = vel_cmd
+
+                control_group.state = (pos, vel)
 
             message_id += 1
 
             time.sleep(self._update_duration)
+
+        self._sig_stop_rt = False
 
