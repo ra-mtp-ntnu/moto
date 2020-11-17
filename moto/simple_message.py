@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from threading import Lock
 from typing import List, Union, ClassVar
 from dataclasses import dataclass
 from enum import Enum
@@ -641,12 +642,20 @@ class MotoRealTimeMotionJointStateExData:
     # Feedback joint velocities in radian/sec.
     vel: List[float]
 
+    def __init__(self, groupno: int, pos: List[float], vel: List[float]) -> None:
+        self.groupno = groupno
+        num_joints = len(pos)
+        assert num_joints == len(vel)
+        padding = [0.0] * (ROS_MAX_JOINT - num_joints)
+        self.pos = pos + padding
+        self.vel = vel + padding
+
     @classmethod
     def from_bytes(cls, bytes_):
         unpacked = cls.struct_.unpack(bytes_[: cls.size])
         groupno = unpacked[0]
-        pos = unpacked[1:11]
-        vel = unpacked[11:21]
+        pos = list(unpacked[1:11])
+        vel = list(unpacked[11:21])
         return cls(groupno, pos, vel)
 
     def to_bytes(self):
@@ -659,18 +668,24 @@ class MotoRealTimeMotionJointStateEx:
     message_id: int
     # Control mode (idle, joint position, or joint velocity)
     mode: MotoRealTimeMotionMode
-    number_of_valid_groups: int # Max 4 groups
+    number_of_valid_groups: int  # Max 4 groups
     joint_state_data: List[MotoRealTimeMotionJointStateExData]
+
+    @property
+    def size(self):
+        return (
+            12 + MotoRealTimeMotionJointStateExData.size * self.number_of_valid_groups
+        )
 
     @classmethod
     def from_bytes(cls, bytes_):
-        message_id, mode, number_of_valid_groups = struct.unpack("3i", bytes_[:12])[0]
+        message_id, mode, number_of_valid_groups = struct.unpack("3i", bytes_[:12])
         bytes_ = bytes_[12:]
         joint_state_data = []
         for _ in range(number_of_valid_groups):
             joint_state_data.append(
                 MotoRealTimeMotionJointStateExData.from_bytes(
-                    bytes[: MotoRealTimeMotionJointStateExData.size]
+                    bytes_[: MotoRealTimeMotionJointStateExData.size]
                 )
             )
             bytes_ = bytes_[MotoRealTimeMotionJointStateExData.size :]
@@ -691,6 +706,7 @@ class MotoRealTimeMotionJointStateEx:
         return packed
 
 
+@dataclass
 class MotoRealTimeMotionJointCommandExData:
     struct_: ClassVar[Struct] = Struct("i10f")
     size: ClassVar[int] = struct_.size
@@ -700,6 +716,11 @@ class MotoRealTimeMotionJointCommandExData:
     # Commanded joint positions or velocities. Depends on control mode.
     command: List[float]
 
+    def __init__(self, groupno: int, command: List[float]) -> None:
+        self.groupno = groupno
+        padding = [0.0] * (ROS_MAX_JOINT - len(command))
+        self.command = list(command) + padding
+
     @classmethod
     def from_bytes(cls, bytes_):
         unpacked = cls.struct_.unpack(bytes_[: cls.size])
@@ -708,24 +729,31 @@ class MotoRealTimeMotionJointCommandExData:
         return cls(groupno, command)
 
     def to_bytes(self):
-        return self.struct_.pack(self.groupno, self.command)
+        return self.struct_.pack(self.groupno, *self.command)
 
 
+@dataclass
 class MotoRealTimeMotionJointCommandEx:
     # Message id from the state message that the external controller must echo back in the command
     message_id: int
     number_of_valid_groups: int
     joint_command_data: List[MotoRealTimeMotionJointCommandExData]
 
+    @property
+    def size(self):
+        return (
+            8 + MotoRealTimeMotionJointCommandExData.size * self.number_of_valid_groups
+        )
+
     @classmethod
     def from_bytes(cls, bytes_):
-        message_id, number_of_valid_groups = struct.unpack("2i", bytes_[:8])[0]
+        message_id, number_of_valid_groups = struct.unpack("2i", bytes_[:8])
         bytes_ = bytes_[8:]
         joint_command_data = []
         for _ in range(number_of_valid_groups):
             joint_command_data.append(
                 MotoRealTimeMotionJointCommandExData.from_bytes(
-                    bytes[: MotoRealTimeMotionJointCommandExData.size]
+                    bytes_[: MotoRealTimeMotionJointCommandExData.size]
                 )
             )
             bytes_ = bytes_[MotoRealTimeMotionJointCommandExData.size :]
