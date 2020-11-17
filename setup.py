@@ -8,6 +8,6 @@ setup(
     description="Motoman driver",
     author="Lars Tingelstad",
     author_email="lars.tingelstad@ntnu.no",
-    packages=["moto", "motosim"]
+    packages=find_packages(),
 )
 
