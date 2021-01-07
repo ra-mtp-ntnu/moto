@@ -17,7 +17,7 @@ The highest level API is defined in the `Moto` class.
 from moto import Moto
 ```
 
-Connect to the robot controller with the defined ip address `<robot_ip>` and define the `R1` control group with two degrees of freedom.
+Connect to the robot controller with the defined ip address `<robot_ip>` and define the `R1` control group with six degrees of freedom.
 
 ```python
 m = Moto("<robot_ip>", [("R1", 6)]) 
