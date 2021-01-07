@@ -13,12 +13,32 @@
 # limitations under the License.
 
 from typing import Tuple
-from moto.tcp_client import TcpClient
+import socket
+
 from moto.simple_message import SimpleMessage
 
 
+Address = Tuple[str, int]
+
+
+class TcpClient:
+    def __init__(self, address: Address):
+        self._address: Address = address
+        self._socket: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+
+    def connect(self) -> None:
+        self._socket.connect(self._address)
+
+    def send(self, data: bytes) -> None:
+        self._socket.sendall(data)
+
+    def recv(self, bufsize: int = 1024) -> bytes:
+        return self._socket.recv(bufsize)
+
+
 class SimpleMessageConnection:
-    def __init__(self, addr: Tuple[str, int]) -> None:
+    def __init__(self, addr: Address) -> None:
         self._tcp_client = TcpClient(addr)
 
     def start(self) -> None:
