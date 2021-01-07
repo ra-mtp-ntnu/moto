@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from threading import Lock
 from typing import List, Union, ClassVar
 from dataclasses import dataclass
 from enum import Enum
@@ -96,7 +95,6 @@ class CommandType(Enum):
     STOP_REALTIME_MOTION_MODE = 200141
 
 
-
 class ResultType(Enum):
     SUCCESS = 0
     TRUE = 0
@@ -177,7 +175,7 @@ class FlagsValidFields(Enum):
 
 @dataclass
 class RobotStatus:
-    struct_: ClassVar[Struct] = Struct("7f")
+    struct_: ClassVar[Struct] = Struct("7i")
     size = struct_.size
 
     drives_powered: int  # Servo Power: -1=Unknown, 1=ON, 0=OFF
@@ -828,10 +826,6 @@ class SimpleMessage:
 
     @classmethod
     def from_bytes(cls, bytes_):
-        prefix = Prefix.from_bytes(bytes_[:4])
         header = Header.from_bytes(bytes_[4:16])
-
-        body_cls = MSG_TYPE_CLS[header.msg_type]
-        body = body_cls.from_bytes(bytes_[16:])
-
+        body = MSG_TYPE_CLS[header.msg_type].from_bytes(bytes_[16:])
         return SimpleMessage(header, body)
