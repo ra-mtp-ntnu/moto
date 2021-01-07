@@ -11,7 +11,7 @@ On the robot side, the `moto` library employs the ROS-Industrial robot driver fo
 
 ## Example
 
-The highest level API is defined in `Moto` class.
+The highest level API is defined in the `Moto` class.
 
 ```python
 from moto import Moto
