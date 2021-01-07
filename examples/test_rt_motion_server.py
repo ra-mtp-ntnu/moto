@@ -1,5 +1,8 @@
+from copy import copy
 import logging
 import socket
+import time
+import numpy as np
 
 from moto.simple_message import *
 
@@ -14,8 +17,11 @@ def start_udp_server(address):
 
 
 def main():
-    server = start_udp_server(("localhost", 50244))
+    server = start_udp_server(("192.168.255.3", 50244))
     started = False
+
+    t0 = time.time()
+    p0 = None
     while True:
 
         try:
@@ -28,8 +34,25 @@ def main():
                 server.settimeout(1.0)
                 started = True
 
+
             msg = SimpleMessage.from_bytes(bytes_)
             state: MotoRealTimeMotionJointStateEx = msg.body
+
+            if p0 is None:
+                p0 = copy(state.joint_state_data[1].pos)
+
+            print("state:   {}".format(state.joint_state_data[1].vel[0]))
+
+            # pd = np.deg2rad(10)
+            # Kv = 0.1
+            # vd = Kv * (pd - state.joint_state_data[1].pos[0])
+
+            vd  = 0.1 * (np.sin(3.0 * time.time() - t0))
+
+            # vd = 0.05
+
+
+            print("command: {}".format(vd))
 
             command_msg: SimpleMessage = SimpleMessage(
                 Header(
@@ -41,8 +64,11 @@ def main():
                     state.message_id,
                     state.number_of_valid_groups,
                     [
-                        MotoRealTimeMotionJointCommandExData(joint_state.groupno, [0.1] * 6)
-                        for joint_state in state.joint_state_data
+                        MotoRealTimeMotionJointCommandExData(
+                            0, [vd, 0.0, 0.0, 0.0, 0.0, 0.0]
+                        ),
+                        MotoRealTimeMotionJointCommandExData(1, [vd, 0.0]),
+                        
                     ],
                 ),
             )
@@ -54,4 +80,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
