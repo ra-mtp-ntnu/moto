@@ -22,6 +22,5 @@ setup(
         "License :: OSI Approved :: Apache Software License",
     ],
     python_requires=">=3.8",
-    data_files=["LICENSE", "README.md",],
 )
 
