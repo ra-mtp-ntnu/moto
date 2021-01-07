@@ -35,12 +35,19 @@ from moto.simple_message import (
     MotoMotionReply,
 )
 
-from motosim.motion_controller_simulator import (
+from moto.sim.motion_controller_simulator import (
     MotionControllerSimulator,
     JointTrajectoryPoint,
 )
 
 
+def open_tcp_connection(address: Address) -> Tuple[socket.socket, Any]:
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    server.bind(address)
+    server.listen()
+    return server.accept()
 
 
 class ControlGroupSim:
