@@ -160,9 +160,9 @@ class Moto:
         self,
         robot_ip: str,
         control_group_defs: List[ControlGroupDefinition],
-        start_motion_connection: bool = False,
-        start_state_connection: bool = False,
-        start_io_connection: bool = False,
+        start_motion_connection: bool = True,
+        start_state_connection: bool = True,
+        start_io_connection: bool = True,
         start_real_time_connection: bool = False,
     ):
         self._robot_ip: str = robot_ip
