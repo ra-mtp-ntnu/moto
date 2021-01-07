@@ -27,7 +27,7 @@ If your robot system has multiple control groups, e.g. a positioner with two deg
 ```python
 m = Moto("<robot_ip>", [("R1", 6), ("S1", 2)]) 
 ```
-Note that these tuples must be in the same order as those on the controller. Here, this means that "R1" is the name control group 0 and "S1" is the name of control group 1. The system supports up to 4 control groups.
+Note that these tuples must be in the same order as the control groups on the controller. Here, this means that "R1" is the name control group 0 and "S1" is the name of control group 1. The system supports up to 4 control groups.
 
 Each control group can be accessed and introspected by name:
 ```python
