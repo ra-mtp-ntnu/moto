@@ -17,7 +17,13 @@ from copy import deepcopy
 from threading import Thread, Lock
 
 from moto.simple_message_connection import SimpleMessageConnection
-from moto.simple_message import JointFeedback, JointFeedbackEx, MsgType, SimpleMessage
+from moto.simple_message import (
+    JointFeedback,
+    JointFeedbackEx,
+    MsgType,
+    SimpleMessage,
+    MOT_MAX_GR,
+)
 
 
 class StateConnection(SimpleMessageConnection):
@@ -29,7 +35,7 @@ class StateConnection(SimpleMessageConnection):
 
         self._joint_feedback: List[JointFeedback] = [
             None
-        ] * 4  # Max controllable groups
+        ] * MOT_MAX_GR  # Max controllable groups
         self._lock: Lock = Lock()
 
         self._joint_feedback_callbacks: List[Callable] = []
