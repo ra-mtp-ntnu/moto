@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Union, ClassVar
+from typing import List, Tuple, Union, ClassVar
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, IntFlag
 
 import struct
 from struct import Struct
@@ -166,11 +166,23 @@ class Header:
         )
 
 
-class FlagsValidFields(Enum):
+class ValidFields(IntFlag):
     TIME = 1
     POSITION = 2
     VELOCITY = 4
     ACCELERATION = 8
+
+
+class Ternary(Enum):
+    UNKNOWN = -1
+    FALSE = 0
+    TRUE = 1
+
+
+class PendantMode(Enum):
+    UNKNOWN = -1
+    MANUAL = 1
+    AUTO = 2
 
 
 @dataclass
@@ -178,16 +190,34 @@ class RobotStatus:
     struct_: ClassVar[Struct] = Struct("7i")
     size = struct_.size
 
-    drives_powered: int  # Servo Power: -1=Unknown, 1=ON, 0=OFF
+    drives_powered: Ternary  # Servo Power: -1=Unknown, 1=ON, 0=OFF
     # Controller E-Stop state: -1=Unknown, 1=True(ON), 0=False(OFF)
-    e_stopped: int
+    e_stopped: Ternary
     error_code: int  # Alarm code
-    in_error: int  # Is there an alarm:   -1=Unknown, 1=True, 0=False
-    in_motion: int  # Is currently executing a motion command:  -1=Unknown, 1=True, 0=False
+    in_error: Ternary  # Is there an alarm:   -1=Unknown, 1=True, 0=False
+    in_motion: Ternary  # Is currently executing a motion command:  -1=Unknown, 1=True, 0=False
     # Controller/Pendant mode: -1=Unknown, 1=Manual(TEACH), 2=Auto(PLAY)
-    mode: int
+    mode: PendantMode
     # Is the controller ready to receive motion: -1=Unknown, 1=ENABLED, 0=DISABLED
-    motion_possible: int
+    motion_possible: Ternary
+
+    def __init__(
+        self,
+        drives_powered: Union[int, Ternary],
+        e_stopped: Union[int, Ternary],
+        error_code: int,
+        in_error: Union[int, Ternary],
+        in_motion: Union[int, Ternary],
+        mode: Union[int, PendantMode],
+        motion_possible: Union[int, Ternary],
+    ) -> None:
+        self.drives_powered: Ternary = Ternary(drives_powered)
+        self.e_stopped: Ternary = Ternary(e_stopped)
+        self.error_code: int = error_code
+        self.in_error: Ternary = Ternary(in_error)
+        self.in_motion: Ternary = Ternary(in_motion)
+        self.mode: PendantMode = PendantMode(mode)
+        self.motion_possible: Ternary = Ternary(motion_possible)
 
     @classmethod
     def from_bytes(cls, bytes_):
@@ -218,7 +248,7 @@ class JointTrajPtFull:
     sequence: int
     # Bit-mask indicating which “optional” fields are filled with data.
     # 1=time, 2=position, 4=velocity, 8=acceleration
-    valid_fields: int
+    valid_fields: ValidFields
     # Timestamp associated with this trajectory point; Units: in seconds
     time: float
     # Desired joint positions in radian.  Base to Tool joint order
@@ -230,15 +260,15 @@ class JointTrajPtFull:
         self,
         groupno: int,
         sequence: int,
-        valid_fields: int,
+        valid_fields: Union[int, ValidFields],
         time: float,
         pos: List[float],
         vel: List[float],
         acc: List[float],
-    ):
+    ) -> None:
         self.groupno: int = groupno
         self.sequence: int = sequence
-        self.valid_fields: int = valid_fields
+        self.valid_fields: ValidFields = ValidFields(valid_fields)
         self.time: float = time
         self.pos: List[float] = pos
         self.vel: List[float] = vel
@@ -278,7 +308,7 @@ class JointFeedback:
     groupno: int
     # Bit-mask indicating which “optional” fields are filled with data.
     # 1=time, 2=position, 4=velocity, 8=acceleration
-    valid_fields: int
+    valid_fields: ValidFields
     # Timestamp associated with this trajectory point; Units: in seconds
     time: float
     # Feedback joint positions in radian.  Base to Tool joint order
@@ -289,14 +319,14 @@ class JointFeedback:
     def __init__(
         self,
         groupno: int,
-        valid_fields: int,
+        valid_fields: Union[int, ValidFields],
         time: float,
         pos: List[float],
         vel: List[float],
         acc: List[float],
     ):
         self.groupno: int = groupno
-        self.valid_fields: int = valid_fields
+        self.valid_fields: ValidFields = ValidFields(valid_fields)
         self.time: float = time
         self.pos: List[float] = pos
         self.vel: List[float] = vel
@@ -422,14 +452,55 @@ class MotoMotionReply:
 
 @dataclass
 class JointTrajPtExData:
+    struct_: ClassVar[Struct] = Struct("iif10f10f10f")
+    size: ClassVar[int] = struct_.size
+
     groupno: int  # Robot/group ID;  0 = 1st robot
     # Bit-mask indicating which “optional” fields are filled with data. 1=time, 2=position, 4=velocity, 8=acceleration
-    valid_fields: FlagsValidFields
+    valid_fields: ValidFields
     time: float  # Timestamp associated with this trajectory point; Units: in seconds
     # Desired joint positions in radian. Base to Tool joint order
     pos: List[float]
     vel: List[float]  # Desired joint velocities in radian/sec.
     acc: List[float]  # Desired joint accelerations in radian/sec^2.
+
+    def __init__(
+        self,
+        groupno: int,
+        valid_fields: Union[int, ValidFields],
+        time: float,
+        pos: List[float],
+        vel: List[float],
+        acc: List[float],
+    ) -> None:
+        self.groupno: int = groupno
+        self.valid_fields: ValidFields = ValidFields[valid_fields]
+        self.time: float = time
+        self.pos: List[float] = pos
+        self.vel: List[float] = vel
+        self.acc: List[float] = acc
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        unpacked = cls.struct_.unpack(bytes_[: cls.size])
+        groupno = unpacked[0]
+        valid_fields = unpacked[1]
+        time = unpacked[2]
+        pos = unpacked[3:13]
+        vel = unpacked[13:23]
+        acc = unpacked[23:33]
+        return cls(groupno, valid_fields, time, pos, vel, acc)
+
+    def to_bytes(self):
+        packed = self.struct_.pack(
+            self.groupno,
+            self.valid_fields.value,
+            self.time,
+            self.pos,
+            self.vel,
+            self.acc,
+        )
+        return packed
 
 
 @dataclass
@@ -437,6 +508,24 @@ class JointTrajPtFullEx:
     number_of_valid_groups: int
     sequence: int
     joint_traj_pt_data: List[JointTrajPtExData]
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        number_of_valid_groups, sequence = struct.unpack("ii", bytes_[:8])
+        bytes_ = bytes_[8:]
+        joint_traj_pt_data = []
+        for _ in range(number_of_valid_groups):
+            joint_traj_pt_data.append(
+                JointTrajPtExData.from_bytes(bytes_[: JointTrajPtExData.size])
+            )
+            bytes_ = bytes_[JointTrajPtExData.size :]
+        return cls(number_of_valid_groups, sequence, joint_traj_pt_data)
+
+    def to_bytes(self):
+        packed: bytes = struct.pack("ii", self.number_of_valid_groups, self.sequence)
+        for pt in self.joint_traj_pt_data:
+            packed += pt.to_bytes()
+        return packed
 
 
 @dataclass
@@ -466,9 +555,19 @@ class JointFeedbackEx:
 
 @dataclass
 class SelectTool:
+    struct_: ClassVar[Struct] = Struct("iii")
+    size = struct_.size
+
     groupno: int
     tool: int
     sequence: int
+
+    @classmethod
+    def from_bytes(cls, bytes_):
+        return cls(*cls.struct_.unpack(bytes_[:, cls.size]))
+
+    def to_bytes(self):
+        return self.struct_.pack(self.groupno, self.tool, self.sequence)
 
 
 @dataclass
@@ -759,7 +858,11 @@ class MotoRealTimeMotionJointCommandEx:
             )
             bytes_ = bytes_[MotoRealTimeMotionJointCommandExData.size :]
 
-        return cls(message_id, number_of_valid_groups, joint_command_data,)
+        return cls(
+            message_id,
+            number_of_valid_groups,
+            joint_command_data,
+        )
 
     def to_bytes(self):
         packed: bytes = struct.pack("2i", self.message_id, self.number_of_valid_groups)
