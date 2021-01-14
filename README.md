@@ -1,4 +1,3 @@
-![Python package](https://github.com/tingelst/moto/workflows/Python%20package/badge.svg)
 # moto
 A Python library for controlling Yaskawa MOTOMAN robots.
 
