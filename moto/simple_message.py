@@ -225,20 +225,20 @@ class RobotStatus:
 
     def to_bytes(self):
         packed = self.struct_.pack(
-            self.drives_powered,
-            self.e_stopped,
+            self.drives_powered.value,
+            self.e_stopped.value,
             self.error_code,
-            self.in_error,
-            self.in_motion,
-            self.mode,
-            self.motion_possible,
+            self.in_error.value,
+            self.in_motion.value,
+            self.mode.value,
+            self.motion_possible.value,
         )
         return packed
 
 
 @dataclass
 class JointTrajPtFull:
-    struct_: ClassVar[Struct] = Struct("3i31f")
+    struct_: ClassVar[Struct] = Struct("iiif10f10f10f")
     size: ClassVar[int] = struct_.size
 
     # Robot/group ID;  0 = 1st robot
@@ -338,9 +338,9 @@ class JointFeedback:
         groupno = unpacked[0]
         valid_fields = unpacked[1]
         time = unpacked[2]
-        pos = unpacked[3 : 3 + ROS_MAX_JOINT]
-        vel = unpacked[13 : 13 + ROS_MAX_JOINT]
-        acc = unpacked[23 : 23 + ROS_MAX_JOINT]
+        pos = unpacked[3:13]
+        vel = unpacked[13:23]
+        acc = unpacked[23:33]
         return cls(groupno, valid_fields, time, pos, vel, acc)
 
     def to_bytes(self):
@@ -352,7 +352,7 @@ class JointFeedback:
 
 @dataclass
 class MotoMotionCtrl:
-    struct_: ClassVar[Struct] = Struct("3i{}f".format(ROS_MAX_JOINT))
+    struct_: ClassVar[Struct] = Struct("3i10f")
     size: ClassVar[int] = struct_.size
 
     groupno: int  # Robot/group ID;  0 = 1st robot
@@ -391,7 +391,7 @@ class MotoMotionCtrl:
 
 @dataclass
 class MotoMotionReply:
-    struct_: ClassVar[Struct] = Struct("5i{}f".format(ROS_MAX_JOINT))
+    struct_: ClassVar[Struct] = Struct("5i10f")
     size = struct_.size
 
     groupno: int  # Robot/group ID;  0 = 1st robot
