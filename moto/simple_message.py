@@ -186,6 +186,7 @@ class Ternary(Enum):
 
 
 class PendantMode(Enum):
+    """Controller / Pendant mode."""
     UNKNOWN = -1
     MANUAL = 1
     AUTO = 2
@@ -196,13 +197,12 @@ class RobotStatus:
     struct_: ClassVar[Struct] = Struct("7i")
     size = struct_.size
 
-    drives_powered: Ternary  # Servo Power 
+    drives_powered: Ternary  # Servo Power
     # Controller E-Stop state
     e_stopped: Ternary
     error_code: int  # Alarm code
     in_error: Ternary  # Is there an alarm
     in_motion: Ternary  # Is currently executing a motion command
-    # Controller/Pendant mode
     mode: PendantMode
     # Is the controller ready to receive motion
     motion_possible: Ternary
@@ -282,7 +282,7 @@ class JointTrajPtFull:
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
-        unpacked = cls.struct_.unpack(bytes_[: cls.size])
+        unpacked: Tuple = cls.struct_.unpack(bytes_[: cls.size])
         groupno = unpacked[0]
         sequence = unpacked[1]
         valid_fields = unpacked[2]
@@ -405,7 +405,7 @@ class MotoMotionReply:
     sequence: int
     command: CommandType  # Reference to the received message command or type
     result: ResultType  # High level result code
-    subcode: SubCode  # More detailed result code (optional)
+    subcode: Union[int, SubCode]  # More detailed result code (optional)
     data: List[float]  # Reply data - for future use
 
     def __init__(
