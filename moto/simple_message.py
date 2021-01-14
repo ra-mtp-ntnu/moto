@@ -23,6 +23,10 @@ ROS_MAX_JOINT: int = 10
 MOT_MAX_GR: int = 4
 
 
+class SimpleMessageError(Exception):
+    pass
+
+
 @dataclass
 class Prefix:
     struct_: ClassVar[Struct] = Struct("i")
@@ -157,16 +161,18 @@ class Header:
         self.reply_type = ReplyType(reply_type)
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         return cls(*cls.struct_.unpack(bytes_))
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         return self.struct_.pack(
             self.msg_type.value, self.comm_type.value, self.reply_type.value
         )
 
 
 class ValidFields(IntFlag):
+    """Bit-mask indicating which 'optional' fields are filled with data."""
+
     TIME = 1
     POSITION = 2
     VELOCITY = 4
@@ -190,15 +196,15 @@ class RobotStatus:
     struct_: ClassVar[Struct] = Struct("7i")
     size = struct_.size
 
-    drives_powered: Ternary  # Servo Power: -1=Unknown, 1=ON, 0=OFF
-    # Controller E-Stop state: -1=Unknown, 1=True(ON), 0=False(OFF)
+    drives_powered: Ternary  # Servo Power 
+    # Controller E-Stop state
     e_stopped: Ternary
     error_code: int  # Alarm code
-    in_error: Ternary  # Is there an alarm:   -1=Unknown, 1=True, 0=False
-    in_motion: Ternary  # Is currently executing a motion command:  -1=Unknown, 1=True, 0=False
-    # Controller/Pendant mode: -1=Unknown, 1=Manual(TEACH), 2=Auto(PLAY)
+    in_error: Ternary  # Is there an alarm
+    in_motion: Ternary  # Is currently executing a motion command
+    # Controller/Pendant mode
     mode: PendantMode
-    # Is the controller ready to receive motion: -1=Unknown, 1=ENABLED, 0=DISABLED
+    # Is the controller ready to receive motion
     motion_possible: Ternary
 
     def __init__(
@@ -220,10 +226,10 @@ class RobotStatus:
         self.motion_possible: Ternary = Ternary(motion_possible)
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         return cls(*cls.struct_.unpack(bytes_[: cls.size]))
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         packed = self.struct_.pack(
             self.drives_powered.value,
             self.e_stopped.value,
@@ -275,7 +281,7 @@ class JointTrajPtFull:
         self.acc: List[float] = acc
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         unpacked = cls.struct_.unpack(bytes_[: cls.size])
         groupno = unpacked[0]
         sequence = unpacked[1]
@@ -286,11 +292,11 @@ class JointTrajPtFull:
         acc = unpacked[24:34]
         return cls(groupno, sequence, valid_fields, time, pos, vel, acc)
 
-    def to_bytes(self):
-        packed = self.struct_.pack(
+    def to_bytes(self) -> bytes:
+        packed: bytes = self.struct_.pack(
             self.groupno,
             self.sequence,
-            self.valid_fields,
+            self.valid_fields.value,
             self.time,
             *self.pos,
             *self.vel,
@@ -333,7 +339,7 @@ class JointFeedback:
         self.acc: List[float] = acc
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         unpacked = cls.struct_.unpack(bytes_[: cls.size])
         groupno = unpacked[0]
         valid_fields = unpacked[1]
@@ -343,7 +349,7 @@ class JointFeedback:
         acc = unpacked[23:33]
         return cls(groupno, valid_fields, time, pos, vel, acc)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         packed = self.struct_.pack(
             self.groupno, self.valid_fields, self.time, *self.pos, *self.vel, *self.acc
         )
@@ -374,7 +380,7 @@ class MotoMotionCtrl:
         self.data: List[float] = data
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         unpacked = cls.struct_.unpack(bytes_)
         groupno = unpacked[0]
         sequence = unpacked[1]
@@ -382,7 +388,7 @@ class MotoMotionCtrl:
         data = unpacked[3:13]
         return cls(groupno, sequence, command, data)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         packed = self.struct_.pack(
             self.groupno, self.sequence, self.command.value, *self.data
         )
@@ -428,7 +434,7 @@ class MotoMotionReply:
         self.data: List[float] = data
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         unpacked = cls.struct_.unpack(bytes_[: cls.size])
         groupno = unpacked[0]
         sequence = unpacked[1]
@@ -438,7 +444,7 @@ class MotoMotionReply:
         data = unpacked[5:15]
         return cls(groupno, sequence, command, result, subcode, data)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         packed = self.struct_.pack(
             self.groupno,
             self.sequence,
@@ -456,7 +462,6 @@ class JointTrajPtExData:
     size: ClassVar[int] = struct_.size
 
     groupno: int  # Robot/group ID;  0 = 1st robot
-    # Bit-mask indicating which “optional” fields are filled with data. 1=time, 2=position, 4=velocity, 8=acceleration
     valid_fields: ValidFields
     time: float  # Timestamp associated with this trajectory point; Units: in seconds
     # Desired joint positions in radian. Base to Tool joint order
@@ -474,14 +479,14 @@ class JointTrajPtExData:
         acc: List[float],
     ) -> None:
         self.groupno: int = groupno
-        self.valid_fields: ValidFields = ValidFields[valid_fields]
+        self.valid_fields: ValidFields = ValidFields(valid_fields)
         self.time: float = time
         self.pos: List[float] = pos
         self.vel: List[float] = vel
         self.acc: List[float] = acc
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         unpacked = cls.struct_.unpack(bytes_[: cls.size])
         groupno = unpacked[0]
         valid_fields = unpacked[1]
@@ -491,7 +496,7 @@ class JointTrajPtExData:
         acc = unpacked[23:33]
         return cls(groupno, valid_fields, time, pos, vel, acc)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         packed = self.struct_.pack(
             self.groupno,
             self.valid_fields.value,
@@ -510,7 +515,7 @@ class JointTrajPtFullEx:
     joint_traj_pt_data: List[JointTrajPtExData]
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         number_of_valid_groups, sequence = struct.unpack("ii", bytes_[:8])
         bytes_ = bytes_[8:]
         joint_traj_pt_data = []
@@ -521,7 +526,7 @@ class JointTrajPtFullEx:
             bytes_ = bytes_[JointTrajPtExData.size :]
         return cls(number_of_valid_groups, sequence, joint_traj_pt_data)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         packed: bytes = struct.pack("ii", self.number_of_valid_groups, self.sequence)
         for pt in self.joint_traj_pt_data:
             packed += pt.to_bytes()
@@ -534,7 +539,7 @@ class JointFeedbackEx:
     joint_traj_pt_data: List[JointFeedback]
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         number_of_valid_groups = struct.unpack("i", bytes_[:4])[0]
         bytes_ = bytes_[4:]
         joint_traj_pt_data = []
@@ -546,7 +551,7 @@ class JointFeedbackEx:
 
         return cls(number_of_valid_groups, joint_traj_pt_data)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         packed: bytes = struct.pack("i", self.number_of_valid_groups)
         for pt in self.joint_traj_pt_data:
             packed += pt.to_bytes()
@@ -563,10 +568,10 @@ class SelectTool:
     sequence: int
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         return cls(*cls.struct_.unpack(bytes_[:, cls.size]))
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         return self.struct_.pack(self.groupno, self.tool, self.sequence)
 
 
@@ -577,12 +582,12 @@ class MotoReadIOBit:
     address: int
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         unpacked = cls.struct_.unpack(bytes_[: cls.size])
         address = unpacked[0]
         return cls(address)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         return self.struct_.pack(self.address)
 
 
@@ -594,13 +599,13 @@ class MotoReadIOBitReply:
     result_code: int
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         unpacked = cls.struct_.unpack(bytes_[: cls.size])
         value = unpacked[0]
         result_code = unpacked[1]
         return cls(value, result_code)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         return self.struct_.pack(self.value, self.result_code)
 
 
@@ -612,13 +617,13 @@ class MotoWriteIOBit:
     value: int
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         unpacked = cls.struct_.unpack(bytes_[: cls.size])
         address = unpacked[0]
         value = unpacked[1]
         return cls(address, value)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         return self.struct_.pack(self.address, self.value)
 
 
@@ -629,12 +634,12 @@ class MotoWriteIOBitReply:
     result_code: int
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         unpacked = cls.struct_.unpack(bytes_[: cls.size])
         result_code = unpacked[0]
         return cls(result_code)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         return self.struct_.pack(self.result_code)
 
 
@@ -645,12 +650,12 @@ class MotoReadIOGroup:
     address: int
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         unpacked = cls.struct_.unpack(bytes_[: cls.size])
         address = unpacked[0]
         return cls(address)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         return self.struct_.pack(self.address)
 
 
@@ -662,13 +667,13 @@ class MotoReadIOGroupReply:
     result_code: int
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         unpacked = cls.struct_.unpack(bytes_[: cls.size])
         value = unpacked[0]
         result_code = unpacked[1]
         return cls(value, result_code)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         return self.struct_.pack(self.value, self.result_code)
 
 
@@ -680,13 +685,13 @@ class MotoWriteIOGroup:
     value: int
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         unpacked = cls.struct_.unpack(bytes_[: cls.size])
         address = unpacked[0]
         value = unpacked[1]
         return cls(address, value)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         return self.struct_.pack(self.address, self.value)
 
 
@@ -697,12 +702,12 @@ class MotoWriteIOGroupReply:
     result_code: int
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         unpacked = cls.struct_.unpack(bytes_[: cls.size])
         result_code = unpacked[0]
         return cls(result_code)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         return self.struct_.pack(self.result_code)
 
 
@@ -714,13 +719,13 @@ class MotoIoCtrlReply:
     subcode: Union[int, SubCode]  # More detailed result code (optional)
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         unpacked = cls.struct_.unpack(bytes_[: cls.size])
         result = unpacked[0]
         subcode = unpacked[1]
         return cls(result, subcode)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         return self.struct_.pack(self.result.value, self.subcode)
 
 
@@ -751,14 +756,14 @@ class MotoRealTimeMotionJointStateExData:
         self.vel = vel + padding
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         unpacked = cls.struct_.unpack(bytes_[: cls.size])
         groupno = unpacked[0]
         pos = list(unpacked[1:11])
         vel = list(unpacked[11:21])
         return cls(groupno, pos, vel)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         return self.struct_.pack(self.groupno, *self.pos, *self.vel)
 
 
@@ -778,7 +783,7 @@ class MotoRealTimeMotionJointStateEx:
         )
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         message_id, mode, number_of_valid_groups = struct.unpack("3i", bytes_[:12])
         bytes_ = bytes_[12:]
         joint_state_data = []
@@ -797,7 +802,7 @@ class MotoRealTimeMotionJointStateEx:
             joint_state_data,
         )
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         packed: bytes = struct.pack(
             "3i", self.message_id, self.mode.value, self.number_of_valid_groups
         )
@@ -822,13 +827,13 @@ class MotoRealTimeMotionJointCommandExData:
         self.command = list(command) + padding
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         unpacked = cls.struct_.unpack(bytes_[: cls.size])
         groupno = unpacked[0]
         command = unpacked[1:]
         return cls(groupno, command)
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         return self.struct_.pack(self.groupno, *self.command)
 
 
@@ -846,7 +851,7 @@ class MotoRealTimeMotionJointCommandEx:
         )
 
     @classmethod
-    def from_bytes(cls, bytes_):
+    def from_bytes(cls, bytes_: bytes):
         message_id, number_of_valid_groups = struct.unpack("2i", bytes_[:8])
         bytes_ = bytes_[8:]
         joint_command_data = []
@@ -864,7 +869,7 @@ class MotoRealTimeMotionJointCommandEx:
             joint_command_data,
         )
 
-    def to_bytes(self):
+    def to_bytes(self) -> bytes:
         packed: bytes = struct.pack("2i", self.message_id, self.number_of_valid_groups)
         for group_joint_command_data in self.joint_command_data:
             packed += group_joint_command_data.to_bytes()
@@ -920,15 +925,15 @@ class SimpleMessage:
     header: Header
     body: SimpleMessageBody
 
-    def to_bytes(self):
+    @classmethod
+    def from_bytes(cls, bytes_: bytes):
+        header = Header.from_bytes(bytes_[4:16])
+        body = MSG_TYPE_CLS[header.msg_type].from_bytes(bytes_[16:])
+        return SimpleMessage(header, body)
+
+    def to_bytes(self) -> bytes:
         return (
             Prefix(self.header.size + self.body.size).to_bytes()
             + self.header.to_bytes()
             + self.body.to_bytes()
         )
-
-    @classmethod
-    def from_bytes(cls, bytes_):
-        header = Header.from_bytes(bytes_[4:16])
-        body = MSG_TYPE_CLS[header.msg_type].from_bytes(bytes_[16:])
-        return SimpleMessage(header, body)
