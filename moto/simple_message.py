@@ -14,7 +14,7 @@
 
 from typing import List, Tuple, Union, ClassVar
 from dataclasses import dataclass
-from enum import Enum, IntFlag
+from enum import Enum, IntEnum, IntFlag
 
 import struct
 from struct import Struct
@@ -111,7 +111,7 @@ class ResultType(Enum):
     MP_FAILURE = 6
 
 
-class SubCode(Enum):
+class SubCode(IntEnum):
     INVALID_UNSPECIFIED = 3000
     INVALID_MSGSIZE = 3001
     INVALID_MSGHEADER = 3002
@@ -412,7 +412,7 @@ class MotoMotionReply:
         self,
         groupno: int,
         sequence: int,
-        command: Union[int, CommandType],
+        command: Union[int, CommandType, MsgType],
         result: Union[int, ResultType],
         subcode: Union[int, SubCode],
         data: List[float] = [0] * ROS_MAX_JOINT,
@@ -420,9 +420,12 @@ class MotoMotionReply:
         self.groupno: int = groupno
         self.sequence: int = sequence
         try:
-            self.command: MsgType = MsgType(command)
+            self.command: CommandType = CommandType(command)
         except:
-            self.command = command
+            try:
+                self.command: MsgType = MsgType(command)
+            except:
+                self.command: int = command
         try:
             self.result: ResultType = ResultType(result)
         except:
