@@ -111,34 +111,40 @@ class ResultType(Enum):
     MP_FAILURE = 6
 
 
-class SubCode(IntEnum):
-    INVALID_UNSPECIFIED = 3000
-    INVALID_MSGSIZE = 3001
-    INVALID_MSGHEADER = 3002
-    INVALID_MSGTYPE = 3003
-    INVALID_GROUPNO = 3004
-    INVALID_SEQUENCE = 3005
-    INVALID_COMMAND = 3006
-    INVALID_DATA = 3010
-    INVALID_DATA_START_POS = 3011
-    INVALID_DATA_POSITION = 3011
-    INVALID_DATA_SPEED = 3012
-    INVALID_DATA_ACCEL = 3013
-    INVALID_DATA_INSUFFICIENT = 3014
-    INVALID_DATA_TIME = 3015
-    INVALID_DATA_TOOLNO = 3016
-    NOT_READY_UNSPECIFIED = 5000
-    NOT_READY_ALARM = 5001
-    NOT_READY_ERROR = 5002
-    NOT_READY_ESTOP = 5003
-    NOT_READY_NOT_PLAY = 5004
-    NOT_READY_NOT_REMOTE = 5005
-    NOT_READY_SERVO_OFF = 5006
-    NOT_READY_HOLD = 5007
-    NOT_READY_NOT_STARTED = 5008
-    NOT_READY_WAITING_ROS = 5009
-    NOT_READY_SKILLSEND = 5010
-    NOT_READY_PFL_ACTIVE = 5011
+class InvalidSubCode(IntEnum):
+    UNSPECIFIED = 3000
+    MSGSIZE = 3001
+    MSGHEADER = 3002
+    MSGTYPE = 3003
+    GROUPNO = 3004
+    SEQUENCE = 3005
+    COMMAND = 3006
+    DATA = 3010
+    DATA_START_POS = 3011
+    DATA_POSITION = 3011
+    DATA_SPEED = 3012
+    DATA_ACCEL = 3013
+    DATA_INSUFFICIENT = 3014
+    DATA_TIME = 3015
+    DATA_TOOLNO = 3016
+
+
+class NotReadySubcode(IntEnum):
+    UNSPECIFIED = 5000
+    ALARM = 5001
+    ERROR = 5002
+    ESTOP = 5003
+    NOT_PLAY = 5004
+    NOT_REMOTE = 5005
+    SERVO_OFF = 5006
+    HOLD = 5007
+    NOT_STARTED = 5008
+    WAITING_ROS = 5009
+    SKILLSEND = 5010
+    PFL_ACTIVE = 5011
+
+
+SubCode = Union[int, InvalidSubCode, NotReadySubcode]
 
 
 @dataclass
@@ -187,6 +193,7 @@ class Ternary(Enum):
 
 class PendantMode(Enum):
     """Controller / Pendant mode."""
+
     UNKNOWN = -1
     MANUAL = 1
     AUTO = 2
@@ -197,14 +204,19 @@ class RobotStatus:
     struct_: ClassVar[Struct] = Struct("7i")
     size = struct_.size
 
-    drives_powered: Ternary  # Servo Power
-    # Controller E-Stop state
+    # Servo Power: -1=Unknown, 1=ON, 0=OFF
+    drives_powered: Ternary
+    # Controller E-Stop state: -1=Unknown, 1=True(ON), 0=False(OFF)
     e_stopped: Ternary
-    error_code: int  # Alarm code
-    in_error: Ternary  # Is there an alarm
-    in_motion: Ternary  # Is currently executing a motion command
+    # Alarm code
+    error_code: int
+    # Is there an alarm: -1=Unknown, 1=True, 0=False
+    in_error: Ternary
+    # Is currently executing a motion command: -1=Unknown, 1=True, 0=False
+    in_motion: Ternary
+    # Controller/Pendant mode: -1=Unknown, 1=Manual(TEACH), 2=Auto(PLAY)
     mode: PendantMode
-    # Is the controller ready to receive motion
+    # Is the controller ready to receive motion: -1=Unknown, 1=ENABLED, 0=DISABLED
     motion_possible: Ternary
 
     def __init__(
@@ -252,15 +264,17 @@ class JointTrajPtFull:
     # Index of point in trajectory; 0 = Initial trajectory point,
     # which should match the robot current position.
     sequence: int
-    # Bit-mask indicating which “optional” fields are filled with data.
+    # Bit-mask indicating which 'optional' fields are filled with data.
     # 1=time, 2=position, 4=velocity, 8=acceleration
     valid_fields: ValidFields
     # Timestamp associated with this trajectory point; Units: in seconds
     time: float
     # Desired joint positions in radian.  Base to Tool joint order
     pos: List[float]
-    vel: List[float]  # Desired joint velocities in radian/sec.
-    acc: List[float]  # Desired joint accelerations in radian/sec^2.
+    # Desired joint velocities in radian/sec.
+    vel: List[float]
+    # Desired joint accelerations in radian/sec^2.
+    acc: List[float]
 
     def __init__(
         self,
@@ -317,10 +331,12 @@ class JointFeedback:
     valid_fields: ValidFields
     # Timestamp associated with this trajectory point; Units: in seconds
     time: float
-    # Feedback joint positions in radian.  Base to Tool joint order
+    # Feedback joint positions in radian. Base to Tool joint order
     pos: List[float]
-    vel: List[float]  # Feedback joint velocities in radian/sec.
-    acc: List[float]  # Feedback joint accelerations in radian/sec^2.
+    # Feedback joint velocities in radian/sec.
+    vel: List[float]
+    # Feedback joint accelerations in radian/sec^2.
+    acc: List[float]
 
     def __init__(
         self,
@@ -360,12 +376,14 @@ class JointFeedback:
 class MotoMotionCtrl:
     struct_: ClassVar[Struct] = Struct("3i10f")
     size: ClassVar[int] = struct_.size
-
-    groupno: int  # Robot/group ID;  0 = 1st robot
+    # Robot/group ID;  0 = 1st robot
+    groupno: int
     # Optional message tracking number that will be echoed back in the response.
     sequence: int
-    command: CommandType  # Desired command
-    data: List[float]  # Command data - for future use
+    # Desired command
+    command: CommandType
+    # Command data - for future use
+    data: List[float]
 
     def __init__(
         self,
@@ -399,14 +417,18 @@ class MotoMotionCtrl:
 class MotoMotionReply:
     struct_: ClassVar[Struct] = Struct("5i10f")
     size = struct_.size
-
-    groupno: int  # Robot/group ID;  0 = 1st robot
+    # Robot/group ID;  0 = 1st robot
+    groupno: int
     # Optional message tracking number that will be echoed back in the response.
     sequence: int
-    command: CommandType  # Reference to the received message command or type
-    result: ResultType  # High level result code
-    subcode: Union[int, SubCode]  # More detailed result code (optional)
-    data: List[float]  # Reply data - for future use
+    # Reference to the received message command or type
+    command: CommandType
+    # High level result code
+    result: ResultType
+    # More detailed result code (optional)
+    subcode: SubCode
+    # Reply data - for future use
+    data: List[float]
 
     def __init__(
         self,
@@ -414,7 +436,7 @@ class MotoMotionReply:
         sequence: int,
         command: Union[int, CommandType, MsgType],
         result: Union[int, ResultType],
-        subcode: Union[int, SubCode],
+        subcode: SubCode,
         data: List[float] = [0] * ROS_MAX_JOINT,
     ):
         self.groupno: int = groupno
@@ -431,9 +453,12 @@ class MotoMotionReply:
         except:
             self.result = result
         try:
-            self.subcode: SubCode = SubCode(subcode)
+            self.subcode: InvalidSubCode = InvalidSubCode(subcode)
         except:
-            self.subcode = subcode
+            try:
+                self.subcode: NotReadySubcode = NotReadySubcode(subcode)
+            except:
+                self.subcode = subcode
         self.data: List[float] = data
 
     @classmethod
@@ -578,8 +603,22 @@ class SelectTool:
         return self.struct_.pack(self.groupno, self.tool, self.sequence)
 
 
+class IoResultCodes(IntEnum):
+    OK = 0
+    # The ioAddress cannot be read on this controller
+    READ_ADDRESS_INVALID = 1001
+    # The ioAddress cannot be written to on this controller
+    WRITE_ADDRESS_INVALID = 1002
+    # The value supplied is not a valid value for the addressed IO element
+    WRITE_VALUE_INVALID = 1003
+    # mpReadIO return -1
+    READ_API_ERROR = 1004
+    # mpWriteIO returned -1
+    WRITE_API_ERROR = 1005
+
+
 @dataclass
-class MotoReadIOBit:
+class MotoReadIO:
     struct_: ClassVar[Struct] = Struct("I")
     size = struct_.size
     address: int
@@ -595,7 +634,7 @@ class MotoReadIOBit:
 
 
 @dataclass
-class MotoReadIOBitReply:
+class MotoReadIOReply:
     struct_: ClassVar[Struct] = Struct("II")
     size = struct_.size
     value: int
@@ -613,7 +652,7 @@ class MotoReadIOBitReply:
 
 
 @dataclass
-class MotoWriteIOBit:
+class MotoWriteIO:
     struct_: ClassVar[Struct] = Struct("II")
     size = struct_.size
     address: int
@@ -631,75 +670,7 @@ class MotoWriteIOBit:
 
 
 @dataclass
-class MotoWriteIOBitReply:
-    struct_: ClassVar[Struct] = Struct("I")
-    size = struct_.size
-    result_code: int
-
-    @classmethod
-    def from_bytes(cls, bytes_: bytes):
-        unpacked = cls.struct_.unpack(bytes_[: cls.size])
-        result_code = unpacked[0]
-        return cls(result_code)
-
-    def to_bytes(self) -> bytes:
-        return self.struct_.pack(self.result_code)
-
-
-@dataclass
-class MotoReadIOGroup:
-    struct_: ClassVar[Struct] = Struct("I")
-    size = struct_.size
-    address: int
-
-    @classmethod
-    def from_bytes(cls, bytes_: bytes):
-        unpacked = cls.struct_.unpack(bytes_[: cls.size])
-        address = unpacked[0]
-        return cls(address)
-
-    def to_bytes(self) -> bytes:
-        return self.struct_.pack(self.address)
-
-
-@dataclass
-class MotoReadIOGroupReply:
-    struct_: ClassVar[Struct] = Struct("II")
-    size = struct_.size
-    value: int
-    result_code: int
-
-    @classmethod
-    def from_bytes(cls, bytes_: bytes):
-        unpacked = cls.struct_.unpack(bytes_[: cls.size])
-        value = unpacked[0]
-        result_code = unpacked[1]
-        return cls(value, result_code)
-
-    def to_bytes(self) -> bytes:
-        return self.struct_.pack(self.value, self.result_code)
-
-
-@dataclass
-class MotoWriteIOGroup:
-    struct_: ClassVar[Struct] = Struct("II")
-    size = struct_.size
-    address: int
-    value: int
-
-    @classmethod
-    def from_bytes(cls, bytes_: bytes):
-        unpacked = cls.struct_.unpack(bytes_[: cls.size])
-        address = unpacked[0]
-        value = unpacked[1]
-        return cls(address, value)
-
-    def to_bytes(self) -> bytes:
-        return self.struct_.pack(self.address, self.value)
-
-
-@dataclass
-class MotoWriteIOGroupReply:
+class MotoWriteIOReply:
     struct_: ClassVar[Struct] = Struct("I")
     size = struct_.size
     result_code: int
@@ -719,7 +690,7 @@ class MotoIoCtrlReply:
     struct_: ClassVar[Struct] = Struct("Ii")
     size = struct_.size
     result: ResultType  # High level result code
-    subcode: Union[int, SubCode]  # More detailed result code (optional)
+    subcode: SubcodeUnion[int, SubCode]  # More detailed result code (optional)
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
@@ -888,14 +859,10 @@ SimpleMessageBody = Union[
     JointTrajPtFullEx,
     JointFeedbackEx,
     SelectTool,
-    MotoReadIOBit,
-    MotoReadIOBitReply,
-    MotoWriteIOBit,
-    MotoWriteIOBitReply,
-    MotoReadIOGroup,
-    MotoReadIOGroupReply,
-    MotoWriteIOGroup,
-    MotoWriteIOGroupReply,
+    MotoReadIO,
+    MotoReadIOReply,
+    MotoWriteIO,
+    MotoWriteIOReply,
     MotoIoCtrlReply,
     MotoRealTimeMotionJointStateEx,
     MotoRealTimeMotionJointCommandEx,
@@ -909,14 +876,14 @@ MSG_TYPE_CLS = {
     MsgType.MOTO_MOTION_CTRL: MotoMotionCtrl,
     MsgType.MOTO_MOTION_REPLY: MotoMotionReply,
     MsgType.MOTO_JOINT_FEEDBACK_EX: JointFeedbackEx,
-    MsgType.MOTO_READ_IO_BIT: MotoReadIOBit,
-    MsgType.MOTO_READ_IO_BIT_REPLY: MotoReadIOBitReply,
-    MsgType.MOTO_WRITE_IO_BIT: MotoWriteIOBit,
-    MsgType.MOTO_WRITE_IO_BIT_REPLY: MotoWriteIOBitReply,
-    MsgType.MOTO_READ_IO_GROUP: MotoReadIOGroup,
-    MsgType.MOTO_READ_IO_GROUP_REPLY: MotoReadIOGroupReply,
-    MsgType.MOTO_WRITE_IO_GROUP: MotoWriteIOGroup,
-    MsgType.MOTO_WRITE_IO_GROUP_REPLY: MotoWriteIOGroupReply,
+    MsgType.MOTO_READ_IO_BIT: MotoReadIO,
+    MsgType.MOTO_READ_IO_BIT_REPLY: MotoReadIOReply,
+    MsgType.MOTO_WRITE_IO_BIT: MotoWriteIO,
+    MsgType.MOTO_WRITE_IO_BIT_REPLY: MotoWriteIOReply,
+    MsgType.MOTO_READ_IO_GROUP: MotoReadIO,
+    MsgType.MOTO_READ_IO_GROUP_REPLY: MotoReadIOReply,
+    MsgType.MOTO_WRITE_IO_GROUP: MotoWriteIO,
+    MsgType.MOTO_WRITE_IO_GROUP_REPLY: MotoWriteIOReply,
     MsgType.MOTO_IOCTRL_REPLY: MotoIoCtrlReply,
     MsgType.MOTO_REALTIME_MOTION_JOINT_STATE_EX: MotoRealTimeMotionJointStateEx,
     MsgType.MOTO_REALTIME_MOTION_JOINT_COMMAND_EX: MotoRealTimeMotionJointCommandEx,
