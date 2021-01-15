@@ -93,7 +93,9 @@ class IO:
 
 class RealTimeMotion:
     def __init__(self, real_time_motion_connection: RealTimeMotionConnection) -> None:
-        self._real_time_motion_connection: RealTimeMotionConnection = real_time_motion_connection
+        self._real_time_motion_connection: RealTimeMotionConnection = (
+            real_time_motion_connection
+        )
 
     def connect(self):
         self._real_time_motion_connection.start()
@@ -171,8 +173,8 @@ class Moto:
         self._motion_connection: MotionConnection = MotionConnection(self._robot_ip)
         self._state_connection: StateConnection = StateConnection(self._robot_ip)
         self._io_connection: IoConnection = IoConnection(self._robot_ip)
-        self._real_time_motion_connection: RealTimeMotionConnection = RealTimeMotionConnection(
-            self._robot_ip
+        self._real_time_motion_connection: RealTimeMotionConnection = (
+            RealTimeMotionConnection(self._robot_ip)
         )
 
         self._control_groups: Mapping[str, ControlGroup] = {}
@@ -212,4 +214,3 @@ class Moto:
     @property
     def rt(self):
         return RealTimeMotion(self._real_time_motion_connection)
-

@@ -89,9 +89,12 @@ class CommandType(Enum):
     CHECK_MOTION_READY = 200101
     CHECK_QUEUE_CNT = 200102
     STOP_MOTION = 200111
-    START_SERVOS = 200112  # starts the servo motors
-    STOP_SERVOS = 200113  # stops the servo motors and motion
-    RESET_ALARM = 200114  # clears the error in the current controller
+    # Starts the servo motors
+    START_SERVOS = 200112
+    # Stops the servo motors and motion
+    STOP_SERVOS = 200113
+    # Clears the error in the current controller
+    RESET_ALARM = 200114
     START_TRAJ_MODE = 200121
     STOP_TRAJ_MODE = 200122
     DISCONNECT = 200130
@@ -376,6 +379,7 @@ class JointFeedback:
 class MotoMotionCtrl:
     struct_: ClassVar[Struct] = Struct("3i10f")
     size: ClassVar[int] = struct_.size
+
     # Robot/group ID;  0 = 1st robot
     groupno: int
     # Optional message tracking number that will be echoed back in the response.
@@ -417,6 +421,7 @@ class MotoMotionCtrl:
 class MotoMotionReply:
     struct_: ClassVar[Struct] = Struct("5i10f")
     size = struct_.size
+
     # Robot/group ID;  0 = 1st robot
     groupno: int
     # Optional message tracking number that will be echoed back in the response.
@@ -437,7 +442,7 @@ class MotoMotionReply:
         command: Union[int, CommandType, MsgType],
         result: Union[int, ResultType],
         subcode: SubCode,
-        data: List[float] = [0] * ROS_MAX_JOINT,
+        data: List[float] = [0.0] * ROS_MAX_JOINT,
     ):
         self.groupno: int = groupno
         self.sequence: int = sequence
@@ -541,6 +546,12 @@ class JointTrajPtFullEx:
     number_of_valid_groups: int
     sequence: int
     joint_traj_pt_data: List[JointTrajPtExData]
+
+    @property
+    def size(self):
+        return (
+            8 + JointTrajPtExData.size * self.number_of_valid_groups
+        )
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
@@ -689,8 +700,11 @@ class MotoWriteIOReply:
 class MotoIoCtrlReply:
     struct_: ClassVar[Struct] = Struct("Ii")
     size = struct_.size
-    result: ResultType  # High level result code
-    subcode: SubcodeUnion[int, SubCode]  # More detailed result code (optional)
+
+    # High level result code
+    result: ResultType  
+    # More detailed result code (optional)
+    subcode: SubCode  
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
