@@ -549,9 +549,7 @@ class JointTrajPtFullEx:
 
     @property
     def size(self):
-        return (
-            8 + JointTrajPtExData.size * self.number_of_valid_groups
-        )
+        return 8 + JointTrajPtExData.size * self.number_of_valid_groups
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
@@ -649,7 +647,11 @@ class MotoReadIOReply:
     struct_: ClassVar[Struct] = Struct("II")
     size = struct_.size
     value: int
-    result_code: int
+    result_code: IoResultCodes
+
+    def __init__(self, value: int, result_code: Union[int, IoResultCodes]):
+        self.value = value
+        self.result_code: IoResultCodes = IoResultCodes(result_code)
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
@@ -686,6 +688,9 @@ class MotoWriteIOReply:
     size = struct_.size
     result_code: int
 
+    def __init__(self, result_code: Union[int, IoResultCodes]):
+        self.result_code: IoResultCodes = IoResultCodes(result_code)
+
     @classmethod
     def from_bytes(cls, bytes_: bytes):
         unpacked = cls.struct_.unpack(bytes_[: cls.size])
@@ -702,9 +707,9 @@ class MotoIoCtrlReply:
     size = struct_.size
 
     # High level result code
-    result: ResultType  
+    result: ResultType
     # More detailed result code (optional)
-    subcode: SubCode  
+    subcode: SubCode
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
