@@ -20,14 +20,57 @@ from moto import Moto
 Connect to the robot controller with the defined ip address `<robot_ip>` and define the `R1` control group with six degrees of freedom.
 
 ```python
-m = Moto("<robot_ip>", [("R1", 6)]) 
+m = Moto(
+    "<robot_ip>",
+    [
+        ControlGroupDefinition(
+            groupid="R1",
+            groupno=0,
+            num_joints=6,
+            joint_names=[
+                "joint_1_s",
+                "joint_2_l",
+                "joint_3_u",
+                "joint_4_r",
+                "joint_5_b",
+                "joint_6_t",
+            ],
+        ),
+    ],
+)
 ```
 
 If your robot system has multiple control groups, e.g. a positioner with two degrees of freedom, these can be defined as follows: 
 ```python
-m = Moto("<robot_ip>", [("R1", 6), ("S1", 2)]) 
+m = Moto(
+    "<robot_ip>",
+    [
+        ControlGroupDefinition(
+            groupid="R1",
+            groupno=0,
+            num_joints=6,
+            joint_names=[
+                "joint_1_s",
+                "joint_2_l",
+                "joint_3_u",
+                "joint_4_r",
+                "joint_5_b",
+                "joint_6_t",
+            ],
+        ),
+        ControlGroupDefinition(
+            groupid="S1",
+            groupno=1,
+            num_joints=2,
+            joint_names=[
+                "joint_1",
+                "joint_2",
+            ],
+        ),
+    ],
+)
 ```
-Note that these tuples must be in the same order as the control groups on the controller. Here, this means that "R1" is the name control group 0 and "S1" is the name of control group 1. The system supports up to 4 control groups.
+The system supports up to 4 control groups.
 
 Each control group can be accessed and introspected by name:
 ```python

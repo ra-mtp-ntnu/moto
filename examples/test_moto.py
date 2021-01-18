@@ -1,17 +1,43 @@
 from moto import motion_connection
-from moto import Moto
+from moto import Moto, ControlGroupDefinition
 from moto.simple_message import JointTrajPtFull
 
 import time
 import numpy as np
 import copy
 
+m = Moto(
+    "localhost",
+    [
+        ControlGroupDefinition(
+            groupid="robot",
+            groupno=0,
+            num_joints=6,
+            joint_names=[
+                "joint_1_s",
+                "joint_2_l",
+                "joint_3_u",
+                "joint_4_r",
+                "joint_5_b",
+                "joint_6_t",
+            ],
+        ),
+        ControlGroupDefinition(
+            groupid="positioner",
+            groupno=1,
+            num_joints=2,
+            joint_names=[
+                "joint_1",
+                "joint_2",
+            ],
+        ),
+    ],
+)
 
-m = Moto("localhost", [("R1", 6)])
-# m = Moto("192.168.255.200", [("R1", 6), ("S1", 2)], start_state_connection=True) # Sim with two groups
 
-r = m.control_groups["R1"]
+r = m.control_groups["robot"]
 # s = m.control_groups["S1"]
+
 
 def send_pts(seq, p, t):
     x = copy.deepcopy(list(r.joint_feedback.pos))
@@ -24,6 +50,7 @@ def send_pts(seq, p, t):
     # m._motion_connection.send_joint_traj_pt_full(pt2)
     m._motion_connection.send_joint_traj_pt_full(pt1)
     time.sleep(0.01)
+
 
 # time.sleep(1.0)
 

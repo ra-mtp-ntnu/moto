@@ -18,8 +18,7 @@ from moto.motion_connection import MotionConnection
 from moto.state_connection import StateConnection
 from moto.io_connection import IoConnection
 from moto.real_time_motion_connection import RealTimeMotionConnection
-
-ControlGroupDefinition = Tuple[str, int]
+from moto.control_group import ControlGroupDefinition, ControlGroup
 
 
 class Motion:
@@ -107,56 +106,6 @@ class RealTimeMotion:
         self._real_time_motion_connection.stop_rt_mode()
 
 
-class ControlGroup:
-    def __init__(
-        self,
-        groupid: str,
-        groupno: int,
-        num_joints: int,
-        motion_connection: MotionConnection,
-        state_connection: StateConnection,
-    ):
-        self._groupid: str = groupid
-        self._groupno: int = groupno
-        self._num_joints = num_joints
-        self._motion_connection: MotionConnection = motion_connection
-        self._state_connection: StateConnection = state_connection
-
-    @property
-    def groupid(self) -> str:
-        return self._groupid
-
-    @property
-    def groupno(self) -> int:
-        return self._groupno
-
-    @property
-    def num_joints(self) -> int:
-        return self._num_joints
-
-    @property
-    def position(self):
-        return self.joint_feedback.pos[: self.num_joints]
-
-    @property
-    def velocity(self):
-        return self.joint_feedback.vel[: self.num_joints]
-
-    @property
-    def acceleration(self):
-        return self.joint_feedback.acc[: self.num_joints]
-
-    @property
-    def joint_feedback(self):
-        return self._state_connection.joint_feedback(self._groupno)
-
-    def check_queue_count(self) -> int:
-        return self._motion_connection.check_queue_count(self.groupno)
-
-    def send_trajectory(self, trajectory):
-        pass
-
-
 class Moto:
     def __init__(
         self,
@@ -178,12 +127,9 @@ class Moto:
         )
 
         self._control_groups: Mapping[str, ControlGroup] = {}
-        for groupno, control_group_def in enumerate(self._control_group_defs):
-            groupid, num_joints = control_group_def
-            self._control_groups[groupid] = ControlGroup(
-                groupid,
-                groupno,
-                num_joints,
+        for control_group_def in self._control_group_defs:
+            self._control_groups[control_group_def.groupid] = ControlGroup(
+                control_group_def,
                 self._motion_connection,
                 self._state_connection,
             )
