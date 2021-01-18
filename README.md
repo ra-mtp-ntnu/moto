@@ -1,5 +1,5 @@
 # moto
-A Python library for controlling Yaskawa MOTOMAN robots.
+A Python library for controlling Yaskawa MOTOMAN robots with the MotoROS option.
 
 ## Installation
 
