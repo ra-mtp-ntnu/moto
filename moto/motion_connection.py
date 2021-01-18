@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Union
+
 from moto.simple_message_connection import SimpleMessageConnection
 from moto.simple_message import (
     Header,
@@ -22,6 +24,8 @@ from moto.simple_message import (
     CommandType,
     SimpleMessage,
     JointTrajPtFull,
+    JointTrajPtFullEx,
+    SimpleMessageError,
 )
 
 
@@ -32,16 +36,14 @@ class MotionConnection(SimpleMessageConnection):
     def __init__(self, ip_address):
         super().__init__((ip_address, self.TCP_PORT_MOTION))
 
-    def _send_and_recv_request(
-        self, command: CommandType, groupno=-1
-    ) -> SimpleMessage:
+    def _send_and_recv_request(self, command: CommandType, groupno=-1) -> SimpleMessage:
         request = SimpleMessage(
             Header(
                 MsgType.MOTO_MOTION_CTRL, CommType.SERVICE_REQUEST, ReplyType.INVALID
             ),
-            MotoMotionCtrl(groupno, -1, command),
+            MotoMotionCtrl(groupno=groupno, sequence=-1, command=command),
         )
-        response = self.send_and_recv(request)
+        response: SimpleMessage = self.send_and_recv(request)
         return response
 
     def check_motion_ready(self):
@@ -71,13 +73,21 @@ class MotionConnection(SimpleMessageConnection):
     def disconnect(self):
         return self._send_and_recv_request(CommandType.DISCONNECT)
 
-    def send_joint_traj_pt_full(self, joint_traj_pt_full: JointTrajPtFull) -> None:
+    def send_joint_trajectory_point(
+        self, joint_trajectory_point: Union[JointTrajPtFull, JointTrajPtFullEx]
+    ) -> SimpleMessage:
+        if isinstance(joint_trajectory_point, JointTrajPtFull):
+            msg_type = MsgType.JOINT_TRAJ_PT_FULL
+        elif isinstance(joint_trajectory_point, JointTrajPtFullEx):
+            msg_type = MsgType.MOTO_JOINT_TRAJ_PT_FULL_EX
+        else:
+            raise SimpleMessageError("Not valid joint_trajectory_point.")
         msg = SimpleMessage(
             Header(
-                msg_type=MsgType.JOINT_TRAJ_PT_FULL,
-                comm_type=CommType.TOPIC,
+                msg_type=msg_type,
+                comm_type=CommType.SERVICE_REQUEST,
                 reply_type=ReplyType.INVALID,
             ),
-            joint_traj_pt_full,
+            joint_trajectory_point,
         )
-        self.send(msg)
+        return self.send_and_recv(msg)
