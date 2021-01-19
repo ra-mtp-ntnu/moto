@@ -91,18 +91,56 @@ m.motion.start_trajectory_mode()
 
 The API for sending trajectories is still under development. For now, to move joint 1 you can e.g. do:
 ```python
-def send_trajectory_point(seq: int, pos_increment: float, time_from_start: float):
-    x = copy.copy(list(r1.joint_feedback.pos))
-    x[0] += np.deg2rad(pos_increment)
-    pt = JointTrajPtFull(
-        0, seq, int("0011", 2), time_from_start, copy.deepcopy(x), [0.0] * 10, [0.0] * 10
-    )
-    m._motion_connection.send_joint_traj_pt_full(pt)
+robot_joint_feedback = m.state.joint_feedback_ex()
 
-# The trajectory must always start at the current position
-send_trajectory_point(m, 0, 0.0, 0.0) 
-# Move the joint 1 by 45 degrees in 10 seconds
-send_trajectory_point(m, 1, 45.0, 10.0)
+p0 = JointTrajPtFullEx(
+    number_of_valid_groups=2,
+    sequence=0,
+    joint_traj_pt_data=[
+        JointTrajPtExData(
+            groupno=0,
+            valid_fields=ValidFields.TIME | ValidFields.POSITION | ValidFields.VELOCITY,
+            time=0.0,
+            pos=robot_joint_feedback.joint_feedback_data[0].pos,
+            vel=[0.0] * 10,
+            acc=[0.0] * 10,
+        ),
+        JointTrajPtExData(
+            groupno=1,
+            valid_fields=ValidFields.TIME | ValidFields.POSITION | ValidFields.VELOCITY,
+            time=0.0,
+            pos=robot_joint_feedback.joint_feedback_data[1].pos,
+            vel=[0.0] * 10,
+            acc=[0.0] * 10,
+        ),
+    ],
+)
+
+p1 = JointTrajPtFullEx(
+    number_of_valid_groups=2,
+    sequence=1,
+    joint_traj_pt_data=[
+        JointTrajPtExData(
+            groupno=0,
+            valid_fields=ValidFields.TIME | ValidFields.POSITION | ValidFields.VELOCITY,
+            time=5.0,
+            pos=np.deg2rad([10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+            vel=[0.0] * 10,
+            acc=[0.0] * 10,
+        ),
+        JointTrajPtExData(
+            groupno=1,
+            valid_fields=ValidFields.TIME | ValidFields.POSITION | ValidFields.VELOCITY,
+            time=5.0,
+            pos=np.deg2rad([10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+            vel=[0.0] * 10,
+            acc=[0.0] * 10,
+        ),
+    ],
+)
+
+m.motion.send_trajectory_point(p0) # Current position at time t=0.0
+m.motion.send_trajectory_point(p1) # Desired position at time t=5.0
 ```
 
 ### IO
@@ -114,8 +152,8 @@ m.io.write_bit(27010, 0)
 ```
 as well as bytes:
 ```python
-m.io.read_group(27010)
-m.io.write_group(27010, 42)
+m.io.read_group(1001)
+m.io.write_group(1001, 42)
 ```
 
 As per the [documentation](https://github.com/ros-industrial/motoman/blob/591a09c5cb95378aafd02e77e45514cfac3a009d/motoman_msgs/srv/WriteSingleIO.srv#L9-L12), only the following addresses can be written to:
