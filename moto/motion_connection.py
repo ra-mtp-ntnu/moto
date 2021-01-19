@@ -17,11 +17,13 @@ from typing import Union
 from moto.simple_message_connection import SimpleMessageConnection
 from moto.simple_message import (
     Header,
+    MotoGetDhParameters,
     MsgType,
     CommType,
     ReplyType,
     MotoMotionCtrl,
     CommandType,
+    SelectTool,
     SimpleMessage,
     JointTrajPtFull,
     JointTrajPtFullEx,
@@ -72,6 +74,28 @@ class MotionConnection(SimpleMessageConnection):
 
     def disconnect(self):
         return self._send_and_recv_request(CommandType.DISCONNECT)
+
+    def select_tool(self, groupno: int, tool: int, sequence: int = -1) -> SimpleMessage:
+        request = SimpleMessage(
+            Header(
+                MsgType.MOTO_SELECT_TOOL, CommType.SERVICE_REQUEST, ReplyType.INVALID
+            ),
+            SelectTool(groupno=groupno, tool=tool, sequence=sequence),
+        )
+        response: SimpleMessage = self.send_and_recv(request)
+        return response
+
+    def get_dh_parameters(self) -> SimpleMessage:
+        request = SimpleMessage(
+            Header(
+                MsgType.MOTO_GET_DH_PARAMETERS,
+                CommType.SERVICE_REQUEST,
+                ReplyType.INVALID,
+            ),
+            None,
+        )
+        response: SimpleMessage = self.send_and_recv(request)
+        return response
 
     def send_joint_trajectory_point(
         self, joint_trajectory_point: Union[JointTrajPtFull, JointTrajPtFullEx]

@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Mapping, Tuple
+from typing import List, Mapping, Tuple, Union
 
 from moto.motion_connection import MotionConnection
 from moto.state_connection import StateConnection
 from moto.io_connection import IoConnection
 from moto.real_time_motion_connection import RealTimeMotionConnection
 from moto.control_group import ControlGroupDefinition, ControlGroup
+from moto.simple_message import JointTrajPtExData, JointTrajPtFullEx, JointTrajPtFull
 
 
 class Motion:
@@ -49,6 +50,19 @@ class Motion:
     def stop_trajectory_mode(self):
         return self._motion_connection.stop_traj_mode()
 
+    def select_tool(self, groupno: int, tool: int, sequence: int = -1):
+        return self._motion_connection.select_tool(groupno, tool, sequence)
+
+    def get_dh_parameters(self):
+        return self._motion_connection.get_dh_parameters()
+
+    def send_joint_trajectory_point(
+        self, joint_trajectory_point: Union[JointTrajPtFull, JointTrajPtFullEx]
+    ):
+        return self._motion_connection.send_joint_trajectory_point(
+            joint_trajectory_point
+        )
+
 
 class State:
     def __init__(self, state_connection: StateConnection) -> None:
@@ -62,6 +76,9 @@ class State:
 
     def joint_feedback_ex(self):
         return self._state_connection.joint_feedback_ex()
+
+    def robot_status(self):
+        return self._state_connection.robot_status()
 
     def add_joint_feedback_msg_callback(self, callback):
         self._state_connection.add_joint_feedback_msg_callback(callback)
@@ -129,9 +146,7 @@ class Moto:
         self._control_groups: Mapping[str, ControlGroup] = {}
         for control_group_def in self._control_group_defs:
             self._control_groups[control_group_def.groupid] = ControlGroup(
-                control_group_def,
-                self._motion_connection,
-                self._state_connection,
+                control_group_def, self._motion_connection, self._state_connection,
             )
 
         if start_motion_connection:

@@ -534,9 +534,9 @@ class JointTrajPtExData:
             self.groupno,
             self.valid_fields.value,
             self.time,
-            self.pos,
-            self.vel,
-            self.acc,
+            *self.pos,
+            *self.vel,
+            *self.acc,
         )
         return packed
 
@@ -573,7 +573,7 @@ class JointTrajPtFullEx:
 @dataclass
 class JointFeedbackEx:
     number_of_valid_groups: int
-    joint_traj_pt_data: List[JointFeedback]
+    joint_feedback_data: List[JointFeedback]
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
@@ -651,7 +651,10 @@ class MotoReadIOReply:
 
     def __init__(self, value: int, result_code: Union[int, IoResultCodes]):
         self.value = value
-        self.result_code: IoResultCodes = IoResultCodes(result_code)
+        try:
+            self.result_code: IoResultCodes = IoResultCodes(result_code)
+        except:
+            self.result_code: int = result_code
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
@@ -689,7 +692,10 @@ class MotoWriteIOReply:
     result_code: int
 
     def __init__(self, result_code: Union[int, IoResultCodes]):
-        self.result_code: IoResultCodes = IoResultCodes(result_code)
+        try:
+            self.result_code: IoResultCodes = IoResultCodes(result_code)
+        except:
+            self.result_code: int = result_code
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
@@ -720,6 +726,68 @@ class MotoIoCtrlReply:
 
     def to_bytes(self) -> bytes:
         return self.struct_.pack(self.result.value, self.subcode)
+
+
+@dataclass
+class DhLink:
+    struct_: ClassVar[Struct] = Struct("4f")
+    size = struct_.size
+
+    theta: float
+    d: float
+    a: float
+    alpha: float
+
+    @classmethod
+    def from_bytes(cls, bytes_: bytes):
+        return cls(*cls.struct_.unpack(bytes_[: cls.size]))
+
+    def to_bytes(self) -> bytes:
+        return self.struct_.pack(self.theta, self.d, self.a, self.alpha)
+
+
+@dataclass
+class DhParameters:
+    struct_: ClassVar[Struct] = Struct("32f")
+    size = struct_.size
+
+    link: List[DhLink]
+
+    @classmethod
+    def from_bytes(cls, bytes_: bytes):
+        link = []
+        for _ in range(8):
+            link.append(DhLink.from_bytes(bytes_))
+            bytes_ = bytes_[DhLink.size :]
+        return cls(link)
+
+    def to_bytes(self) -> bytes:
+        bytes_: bytes = b""
+        for link in self.link:
+            bytes_ += link.to_bytes()
+        return bytes_
+
+
+@dataclass
+class MotoGetDhParameters:
+    struct_: ClassVar[Struct] = Struct("128f")
+    size = struct_.size
+
+    dh_parameters: List[DhParameters]
+
+    @classmethod
+    def from_bytes(cls, bytes_: bytes):
+        dh_parameters = []
+        for _ in range(MOT_MAX_GR):
+            dh_parameters.append(DhParameters.from_bytes(bytes_))
+            bytes_ = bytes_[DhParameters.size :]
+        return cls(dh_parameters)
+
+    def to_bytes(self) -> bytes:
+        bytes_: bytes = b""
+        for dh_parameters in self.dh_parameters:
+            bytes_ += dh_parameters.to_bytes()
+        return bytes_
 
 
 class MotoRealTimeMotionMode(Enum):
@@ -856,11 +924,7 @@ class MotoRealTimeMotionJointCommandEx:
             )
             bytes_ = bytes_[MotoRealTimeMotionJointCommandExData.size :]
 
-        return cls(
-            message_id,
-            number_of_valid_groups,
-            joint_command_data,
-        )
+        return cls(message_id, number_of_valid_groups, joint_command_data,)
 
     def to_bytes(self) -> bytes:
         packed: bytes = struct.pack("2i", self.message_id, self.number_of_valid_groups)
@@ -883,6 +947,7 @@ SimpleMessageBody = Union[
     MotoWriteIO,
     MotoWriteIOReply,
     MotoIoCtrlReply,
+    MotoGetDhParameters,
     MotoRealTimeMotionJointStateEx,
     MotoRealTimeMotionJointCommandEx,
 ]
@@ -904,6 +969,8 @@ MSG_TYPE_CLS = {
     MsgType.MOTO_WRITE_IO_GROUP: MotoWriteIO,
     MsgType.MOTO_WRITE_IO_GROUP_REPLY: MotoWriteIOReply,
     MsgType.MOTO_IOCTRL_REPLY: MotoIoCtrlReply,
+    MsgType.MOTO_SELECT_TOOL: SelectTool,
+    MsgType.MOTO_GET_DH_PARAMETERS: MotoGetDhParameters,
     MsgType.MOTO_REALTIME_MOTION_JOINT_STATE_EX: MotoRealTimeMotionJointStateEx,
     MsgType.MOTO_REALTIME_MOTION_JOINT_COMMAND_EX: MotoRealTimeMotionJointCommandEx,
 }
@@ -921,8 +988,12 @@ class SimpleMessage:
         return SimpleMessage(header, body)
 
     def to_bytes(self) -> bytes:
-        return (
-            Prefix(self.header.size + self.body.size).to_bytes()
-            + self.header.to_bytes()
-            + self.body.to_bytes()
-        )
+        if self.body is not None:
+            return (
+                Prefix(self.header.size + self.body.size).to_bytes()
+                + self.header.to_bytes()
+                + self.body.to_bytes()
+            )
+        else:
+            return Prefix(self.header.size).to_bytes() + self.header.to_bytes()
+
