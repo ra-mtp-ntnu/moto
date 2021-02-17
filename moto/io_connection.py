@@ -51,6 +51,4 @@ class IoConnection(SimpleMessageConnection):
         return self._send_and_recv_request(MsgType.MOTO_READ_IO_GROUP, address)
 
     def write_io_group(self, address: int, value: int):
-        return self._send_and_recv_request(
-            MsgType.MOTO_WRITE_IO_GROUP, address, value
-        )
+        return self._send_and_recv_request(MsgType.MOTO_WRITE_IO_GROUP, address, value)

@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Mapping, Tuple
+from typing import List, Mapping, Tuple, Union
 
 from moto.motion_connection import MotionConnection
 from moto.state_connection import StateConnection
 from moto.io_connection import IoConnection
 from moto.real_time_motion_connection import RealTimeMotionConnection
-
-ControlGroupDefinition = Tuple[str, int]
+from moto.control_group import ControlGroupDefinition, ControlGroup
+from moto.simple_message import JointTrajPtExData, JointTrajPtFullEx, JointTrajPtFull
 
 
 class Motion:
@@ -50,6 +50,19 @@ class Motion:
     def stop_trajectory_mode(self):
         return self._motion_connection.stop_traj_mode()
 
+    def select_tool(self, groupno: int, tool: int, sequence: int = -1):
+        return self._motion_connection.select_tool(groupno, tool, sequence)
+
+    def get_dh_parameters(self):
+        return self._motion_connection.get_dh_parameters()
+
+    def send_joint_trajectory_point(
+        self, joint_trajectory_point: Union[JointTrajPtFull, JointTrajPtFullEx]
+    ):
+        return self._motion_connection.send_joint_trajectory_point(
+            joint_trajectory_point
+        )
+
 
 class State:
     def __init__(self, state_connection: StateConnection) -> None:
@@ -63,6 +76,9 @@ class State:
 
     def joint_feedback_ex(self):
         return self._state_connection.joint_feedback_ex()
+
+    def robot_status(self):
+        return self._state_connection.robot_status()
 
     def add_joint_feedback_msg_callback(self, callback):
         self._state_connection.add_joint_feedback_msg_callback(callback)
@@ -93,7 +109,9 @@ class IO:
 
 class RealTimeMotion:
     def __init__(self, real_time_motion_connection: RealTimeMotionConnection) -> None:
-        self._real_time_motion_connection: RealTimeMotionConnection = real_time_motion_connection
+        self._real_time_motion_connection: RealTimeMotionConnection = (
+            real_time_motion_connection
+        )
 
     def connect(self):
         self._real_time_motion_connection.start()
@@ -103,56 +121,6 @@ class RealTimeMotion:
 
     def stop_rt_mode(self):
         self._real_time_motion_connection.stop_rt_mode()
-
-
-class ControlGroup:
-    def __init__(
-        self,
-        groupid: str,
-        groupno: int,
-        num_joints: int,
-        motion_connection: MotionConnection,
-        state_connection: StateConnection,
-    ):
-        self._groupid: str = groupid
-        self._groupno: int = groupno
-        self._num_joints = num_joints
-        self._motion_connection: MotionConnection = motion_connection
-        self._state_connection: StateConnection = state_connection
-
-    @property
-    def groupid(self) -> str:
-        return self._groupid
-
-    @property
-    def groupno(self) -> int:
-        return self._groupno
-
-    @property
-    def num_joints(self) -> int:
-        return self._num_joints
-
-    @property
-    def position(self):
-        return self.joint_feedback.pos[: self.num_joints]
-
-    @property
-    def velocity(self):
-        return self.joint_feedback.vel[: self.num_joints]
-
-    @property
-    def acceleration(self):
-        return self.joint_feedback.acc[: self.num_joints]
-
-    @property
-    def joint_feedback(self):
-        return self._state_connection.joint_feedback(self._groupno)
-
-    def check_queue_count(self) -> int:
-        return self._motion_connection.check_queue_count(self.groupno)
-
-    def send_trajectory(self, trajectory):
-        pass
 
 
 class Moto:
@@ -171,19 +139,14 @@ class Moto:
         self._motion_connection: MotionConnection = MotionConnection(self._robot_ip)
         self._state_connection: StateConnection = StateConnection(self._robot_ip)
         self._io_connection: IoConnection = IoConnection(self._robot_ip)
-        self._real_time_motion_connection: RealTimeMotionConnection = RealTimeMotionConnection(
-            self._robot_ip
+        self._real_time_motion_connection: RealTimeMotionConnection = (
+            RealTimeMotionConnection(self._robot_ip)
         )
 
         self._control_groups: Mapping[str, ControlGroup] = {}
-        for groupno, control_group_def in enumerate(self._control_group_defs):
-            groupid, num_joints = control_group_def
-            self._control_groups[groupid] = ControlGroup(
-                groupid,
-                groupno,
-                num_joints,
-                self._motion_connection,
-                self._state_connection,
+        for control_group_def in self._control_group_defs:
+            self._control_groups[control_group_def.groupid] = ControlGroup(
+                control_group_def, self._motion_connection, self._state_connection,
             )
 
         if start_motion_connection:
@@ -212,4 +175,3 @@ class Moto:
     @property
     def rt(self):
         return RealTimeMotion(self._real_time_motion_connection)
-

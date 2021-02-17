@@ -4,8 +4,11 @@ from moto.simple_message import (
     JointFeedback,
     JointTrajPtFull,
     MotoMotionCtrl,
+    MotoMotionReply,
     PendantMode,
+    ResultType,
     RobotStatus,
+    SubCode,
     CommandType,
     Ternary,
     ValidFields,
@@ -136,6 +139,38 @@ class TestMotoMotionCtrl(unittest.TestCase):
         )
         self.assertEqual(moto_motion_ctrl.command, moto_motion_ctrl_from_bytes.command)
         for d, d_from_bytes in zip(moto_motion_ctrl.data, moto_motion_ctrl.data):
+            self.assertAlmostEqual(d, d_from_bytes)
+
+
+class TestMotoMotionReply(unittest.TestCase):
+    def test_to_and_from_bytes(self):
+        moto_motion_reply = MotoMotionReply(
+            groupno=1,
+            sequence=42,
+            command=CommandType.START_SERVOS,
+            result=ResultType.ALARM,
+            subcode=SubCode.NOT_READY_HOLD,
+            data=[0.0] * 10,
+        )
+
+        moto_motion_reply_from_bytes = MotoMotionReply.from_bytes(
+            moto_motion_reply.to_bytes()
+        )
+
+        self.assertEqual(
+            moto_motion_reply.groupno, moto_motion_reply_from_bytes.groupno
+        )
+        self.assertEqual(
+            moto_motion_reply.sequence, moto_motion_reply_from_bytes.sequence
+        )
+        self.assertEqual(
+            moto_motion_reply.command, moto_motion_reply_from_bytes.command
+        )
+        self.assertEqual(moto_motion_reply.result, moto_motion_reply_from_bytes.result)
+        self.assertEqual(
+            moto_motion_reply.subcode, moto_motion_reply_from_bytes.subcode
+        )
+        for d, d_from_bytes in zip(moto_motion_reply.data, moto_motion_reply.data):
             self.assertAlmostEqual(d, d_from_bytes)
 
 

@@ -14,7 +14,7 @@
 
 from typing import List, Tuple, Union, ClassVar
 from dataclasses import dataclass
-from enum import Enum, IntFlag
+from enum import Enum, IntEnum, IntFlag
 
 import struct
 from struct import Struct
@@ -89,9 +89,12 @@ class CommandType(Enum):
     CHECK_MOTION_READY = 200101
     CHECK_QUEUE_CNT = 200102
     STOP_MOTION = 200111
-    START_SERVOS = 200112  # starts the servo motors
-    STOP_SERVOS = 200113  # stops the servo motors and motion
-    RESET_ALARM = 200114  # clears the error in the current controller
+    # Starts the servo motors
+    START_SERVOS = 200112
+    # Stops the servo motors and motion
+    STOP_SERVOS = 200113
+    # Clears the error in the current controller
+    RESET_ALARM = 200114
     START_TRAJ_MODE = 200121
     STOP_TRAJ_MODE = 200122
     DISCONNECT = 200130
@@ -111,34 +114,40 @@ class ResultType(Enum):
     MP_FAILURE = 6
 
 
-class SubCode(Enum):
-    INVALID_UNSPECIFIED = 3000
-    INVALID_MSGSIZE = 3001
-    INVALID_MSGHEADER = 3002
-    INVALID_MSGTYPE = 3003
-    INVALID_GROUPNO = 3004
-    INVALID_SEQUENCE = 3005
-    INVALID_COMMAND = 3006
-    INVALID_DATA = 3010
-    INVALID_DATA_START_POS = 3011
-    INVALID_DATA_POSITION = 3011
-    INVALID_DATA_SPEED = 3012
-    INVALID_DATA_ACCEL = 3013
-    INVALID_DATA_INSUFFICIENT = 3014
-    INVALID_DATA_TIME = 3015
-    INVALID_DATA_TOOLNO = 3016
-    NOT_READY_UNSPECIFIED = 5000
-    NOT_READY_ALARM = 5001
-    NOT_READY_ERROR = 5002
-    NOT_READY_ESTOP = 5003
-    NOT_READY_NOT_PLAY = 5004
-    NOT_READY_NOT_REMOTE = 5005
-    NOT_READY_SERVO_OFF = 5006
-    NOT_READY_HOLD = 5007
-    NOT_READY_NOT_STARTED = 5008
-    NOT_READY_WAITING_ROS = 5009
-    NOT_READY_SKILLSEND = 5010
-    NOT_READY_PFL_ACTIVE = 5011
+class InvalidSubCode(IntEnum):
+    UNSPECIFIED = 3000
+    MSGSIZE = 3001
+    MSGHEADER = 3002
+    MSGTYPE = 3003
+    GROUPNO = 3004
+    SEQUENCE = 3005
+    COMMAND = 3006
+    DATA = 3010
+    DATA_START_POS = 3011
+    DATA_POSITION = 3011
+    DATA_SPEED = 3012
+    DATA_ACCEL = 3013
+    DATA_INSUFFICIENT = 3014
+    DATA_TIME = 3015
+    DATA_TOOLNO = 3016
+
+
+class NotReadySubcode(IntEnum):
+    UNSPECIFIED = 5000
+    ALARM = 5001
+    ERROR = 5002
+    ESTOP = 5003
+    NOT_PLAY = 5004
+    NOT_REMOTE = 5005
+    SERVO_OFF = 5006
+    HOLD = 5007
+    NOT_STARTED = 5008
+    WAITING_ROS = 5009
+    SKILLSEND = 5010
+    PFL_ACTIVE = 5011
+
+
+SubCode = Union[int, InvalidSubCode, NotReadySubcode]
 
 
 @dataclass
@@ -187,6 +196,7 @@ class Ternary(Enum):
 
 class PendantMode(Enum):
     """Controller / Pendant mode."""
+
     UNKNOWN = -1
     MANUAL = 1
     AUTO = 2
@@ -197,14 +207,19 @@ class RobotStatus:
     struct_: ClassVar[Struct] = Struct("7i")
     size = struct_.size
 
-    drives_powered: Ternary  # Servo Power
-    # Controller E-Stop state
+    # Servo Power: -1=Unknown, 1=ON, 0=OFF
+    drives_powered: Ternary
+    # Controller E-Stop state: -1=Unknown, 1=True(ON), 0=False(OFF)
     e_stopped: Ternary
-    error_code: int  # Alarm code
-    in_error: Ternary  # Is there an alarm
-    in_motion: Ternary  # Is currently executing a motion command
+    # Alarm code
+    error_code: int
+    # Is there an alarm: -1=Unknown, 1=True, 0=False
+    in_error: Ternary
+    # Is currently executing a motion command: -1=Unknown, 1=True, 0=False
+    in_motion: Ternary
+    # Controller/Pendant mode: -1=Unknown, 1=Manual(TEACH), 2=Auto(PLAY)
     mode: PendantMode
-    # Is the controller ready to receive motion
+    # Is the controller ready to receive motion: -1=Unknown, 1=ENABLED, 0=DISABLED
     motion_possible: Ternary
 
     def __init__(
@@ -252,15 +267,17 @@ class JointTrajPtFull:
     # Index of point in trajectory; 0 = Initial trajectory point,
     # which should match the robot current position.
     sequence: int
-    # Bit-mask indicating which “optional” fields are filled with data.
+    # Bit-mask indicating which 'optional' fields are filled with data.
     # 1=time, 2=position, 4=velocity, 8=acceleration
     valid_fields: ValidFields
     # Timestamp associated with this trajectory point; Units: in seconds
     time: float
     # Desired joint positions in radian.  Base to Tool joint order
     pos: List[float]
-    vel: List[float]  # Desired joint velocities in radian/sec.
-    acc: List[float]  # Desired joint accelerations in radian/sec^2.
+    # Desired joint velocities in radian/sec.
+    vel: List[float]
+    # Desired joint accelerations in radian/sec^2.
+    acc: List[float]
 
     def __init__(
         self,
@@ -317,10 +334,12 @@ class JointFeedback:
     valid_fields: ValidFields
     # Timestamp associated with this trajectory point; Units: in seconds
     time: float
-    # Feedback joint positions in radian.  Base to Tool joint order
+    # Feedback joint positions in radian. Base to Tool joint order
     pos: List[float]
-    vel: List[float]  # Feedback joint velocities in radian/sec.
-    acc: List[float]  # Feedback joint accelerations in radian/sec^2.
+    # Feedback joint velocities in radian/sec.
+    vel: List[float]
+    # Feedback joint accelerations in radian/sec^2.
+    acc: List[float]
 
     def __init__(
         self,
@@ -361,11 +380,14 @@ class MotoMotionCtrl:
     struct_: ClassVar[Struct] = Struct("3i10f")
     size: ClassVar[int] = struct_.size
 
-    groupno: int  # Robot/group ID;  0 = 1st robot
+    # Robot/group ID;  0 = 1st robot
+    groupno: int
     # Optional message tracking number that will be echoed back in the response.
     sequence: int
-    command: CommandType  # Desired command
-    data: List[float]  # Command data - for future use
+    # Desired command
+    command: CommandType
+    # Command data - for future use
+    data: List[float]
 
     def __init__(
         self,
@@ -400,37 +422,48 @@ class MotoMotionReply:
     struct_: ClassVar[Struct] = Struct("5i10f")
     size = struct_.size
 
-    groupno: int  # Robot/group ID;  0 = 1st robot
+    # Robot/group ID;  0 = 1st robot
+    groupno: int
     # Optional message tracking number that will be echoed back in the response.
     sequence: int
-    command: CommandType  # Reference to the received message command or type
-    result: ResultType  # High level result code
-    subcode: Union[int, SubCode]  # More detailed result code (optional)
-    data: List[float]  # Reply data - for future use
+    # Reference to the received message command or type
+    command: CommandType
+    # High level result code
+    result: ResultType
+    # More detailed result code (optional)
+    subcode: SubCode
+    # Reply data - for future use
+    data: List[float]
 
     def __init__(
         self,
         groupno: int,
         sequence: int,
-        command: Union[int, CommandType],
+        command: Union[int, CommandType, MsgType],
         result: Union[int, ResultType],
-        subcode: Union[int, SubCode],
-        data: List[float] = [0] * ROS_MAX_JOINT,
+        subcode: SubCode,
+        data: List[float] = [0.0] * ROS_MAX_JOINT,
     ):
         self.groupno: int = groupno
         self.sequence: int = sequence
         try:
-            self.command: MsgType = MsgType(command)
+            self.command: CommandType = CommandType(command)
         except:
-            self.command = command
+            try:
+                self.command: MsgType = MsgType(command)
+            except:
+                self.command: int = command
         try:
             self.result: ResultType = ResultType(result)
         except:
             self.result = result
         try:
-            self.subcode: SubCode = SubCode(subcode)
+            self.subcode: InvalidSubCode = InvalidSubCode(subcode)
         except:
-            self.subcode = subcode
+            try:
+                self.subcode: NotReadySubcode = NotReadySubcode(subcode)
+            except:
+                self.subcode = subcode
         self.data: List[float] = data
 
     @classmethod
@@ -501,9 +534,9 @@ class JointTrajPtExData:
             self.groupno,
             self.valid_fields.value,
             self.time,
-            self.pos,
-            self.vel,
-            self.acc,
+            *self.pos,
+            *self.vel,
+            *self.acc,
         )
         return packed
 
@@ -513,6 +546,10 @@ class JointTrajPtFullEx:
     number_of_valid_groups: int
     sequence: int
     joint_traj_pt_data: List[JointTrajPtExData]
+
+    @property
+    def size(self):
+        return 8 + JointTrajPtExData.size * self.number_of_valid_groups
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
@@ -536,7 +573,7 @@ class JointTrajPtFullEx:
 @dataclass
 class JointFeedbackEx:
     number_of_valid_groups: int
-    joint_traj_pt_data: List[JointFeedback]
+    joint_feedback_data: List[JointFeedback]
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
@@ -575,8 +612,22 @@ class SelectTool:
         return self.struct_.pack(self.groupno, self.tool, self.sequence)
 
 
+class IoResultCodes(IntEnum):
+    OK = 0
+    # The ioAddress cannot be read on this controller
+    READ_ADDRESS_INVALID = 1001
+    # The ioAddress cannot be written to on this controller
+    WRITE_ADDRESS_INVALID = 1002
+    # The value supplied is not a valid value for the addressed IO element
+    WRITE_VALUE_INVALID = 1003
+    # mpReadIO return -1
+    READ_API_ERROR = 1004
+    # mpWriteIO returned -1
+    WRITE_API_ERROR = 1005
+
+
 @dataclass
-class MotoReadIOBit:
+class MotoReadIO:
     struct_: ClassVar[Struct] = Struct("I")
     size = struct_.size
     address: int
@@ -592,11 +643,18 @@ class MotoReadIOBit:
 
 
 @dataclass
-class MotoReadIOBitReply:
+class MotoReadIOReply:
     struct_: ClassVar[Struct] = Struct("II")
     size = struct_.size
     value: int
-    result_code: int
+    result_code: IoResultCodes
+
+    def __init__(self, value: int, result_code: Union[int, IoResultCodes]):
+        self.value = value
+        try:
+            self.result_code: IoResultCodes = IoResultCodes(result_code)
+        except:
+            self.result_code: int = result_code
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
@@ -610,7 +668,7 @@ class MotoReadIOBitReply:
 
 
 @dataclass
-class MotoWriteIOBit:
+class MotoWriteIO:
     struct_: ClassVar[Struct] = Struct("II")
     size = struct_.size
     address: int
@@ -628,78 +686,16 @@ class MotoWriteIOBit:
 
 
 @dataclass
-class MotoWriteIOBitReply:
+class MotoWriteIOReply:
     struct_: ClassVar[Struct] = Struct("I")
     size = struct_.size
     result_code: int
 
-    @classmethod
-    def from_bytes(cls, bytes_: bytes):
-        unpacked = cls.struct_.unpack(bytes_[: cls.size])
-        result_code = unpacked[0]
-        return cls(result_code)
-
-    def to_bytes(self) -> bytes:
-        return self.struct_.pack(self.result_code)
-
-
-@dataclass
-class MotoReadIOGroup:
-    struct_: ClassVar[Struct] = Struct("I")
-    size = struct_.size
-    address: int
-
-    @classmethod
-    def from_bytes(cls, bytes_: bytes):
-        unpacked = cls.struct_.unpack(bytes_[: cls.size])
-        address = unpacked[0]
-        return cls(address)
-
-    def to_bytes(self) -> bytes:
-        return self.struct_.pack(self.address)
-
-
-@dataclass
-class MotoReadIOGroupReply:
-    struct_: ClassVar[Struct] = Struct("II")
-    size = struct_.size
-    value: int
-    result_code: int
-
-    @classmethod
-    def from_bytes(cls, bytes_: bytes):
-        unpacked = cls.struct_.unpack(bytes_[: cls.size])
-        value = unpacked[0]
-        result_code = unpacked[1]
-        return cls(value, result_code)
-
-    def to_bytes(self) -> bytes:
-        return self.struct_.pack(self.value, self.result_code)
-
-
-@dataclass
-class MotoWriteIOGroup:
-    struct_: ClassVar[Struct] = Struct("II")
-    size = struct_.size
-    address: int
-    value: int
-
-    @classmethod
-    def from_bytes(cls, bytes_: bytes):
-        unpacked = cls.struct_.unpack(bytes_[: cls.size])
-        address = unpacked[0]
-        value = unpacked[1]
-        return cls(address, value)
-
-    def to_bytes(self) -> bytes:
-        return self.struct_.pack(self.address, self.value)
-
-
-@dataclass
-class MotoWriteIOGroupReply:
-    struct_: ClassVar[Struct] = Struct("I")
-    size = struct_.size
-    result_code: int
+    def __init__(self, result_code: Union[int, IoResultCodes]):
+        try:
+            self.result_code: IoResultCodes = IoResultCodes(result_code)
+        except:
+            self.result_code: int = result_code
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
@@ -715,8 +711,11 @@ class MotoWriteIOGroupReply:
 class MotoIoCtrlReply:
     struct_: ClassVar[Struct] = Struct("Ii")
     size = struct_.size
-    result: ResultType  # High level result code
-    subcode: Union[int, SubCode]  # More detailed result code (optional)
+
+    # High level result code
+    result: ResultType
+    # More detailed result code (optional)
+    subcode: SubCode
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
@@ -727,6 +726,68 @@ class MotoIoCtrlReply:
 
     def to_bytes(self) -> bytes:
         return self.struct_.pack(self.result.value, self.subcode)
+
+
+@dataclass
+class DhLink:
+    struct_: ClassVar[Struct] = Struct("4f")
+    size = struct_.size
+
+    theta: float
+    d: float
+    a: float
+    alpha: float
+
+    @classmethod
+    def from_bytes(cls, bytes_: bytes):
+        return cls(*cls.struct_.unpack(bytes_[: cls.size]))
+
+    def to_bytes(self) -> bytes:
+        return self.struct_.pack(self.theta, self.d, self.a, self.alpha)
+
+
+@dataclass
+class DhParameters:
+    struct_: ClassVar[Struct] = Struct("32f")
+    size = struct_.size
+
+    link: List[DhLink]
+
+    @classmethod
+    def from_bytes(cls, bytes_: bytes):
+        link = []
+        for _ in range(8):
+            link.append(DhLink.from_bytes(bytes_))
+            bytes_ = bytes_[DhLink.size :]
+        return cls(link)
+
+    def to_bytes(self) -> bytes:
+        bytes_: bytes = b""
+        for link in self.link:
+            bytes_ += link.to_bytes()
+        return bytes_
+
+
+@dataclass
+class MotoGetDhParameters:
+    struct_: ClassVar[Struct] = Struct("128f")
+    size = struct_.size
+
+    dh_parameters: List[DhParameters]
+
+    @classmethod
+    def from_bytes(cls, bytes_: bytes):
+        dh_parameters = []
+        for _ in range(MOT_MAX_GR):
+            dh_parameters.append(DhParameters.from_bytes(bytes_))
+            bytes_ = bytes_[DhParameters.size :]
+        return cls(dh_parameters)
+
+    def to_bytes(self) -> bytes:
+        bytes_: bytes = b""
+        for dh_parameters in self.dh_parameters:
+            bytes_ += dh_parameters.to_bytes()
+        return bytes_
 
 
 class MotoRealTimeMotionMode(Enum):
@@ -863,11 +924,7 @@ class MotoRealTimeMotionJointCommandEx:
             )
             bytes_ = bytes_[MotoRealTimeMotionJointCommandExData.size :]
 
-        return cls(
-            message_id,
-            number_of_valid_groups,
-            joint_command_data,
-        )
+        return cls(message_id, number_of_valid_groups, joint_command_data,)
 
     def to_bytes(self) -> bytes:
         packed: bytes = struct.pack("2i", self.message_id, self.number_of_valid_groups)
@@ -885,15 +942,12 @@ SimpleMessageBody = Union[
     JointTrajPtFullEx,
     JointFeedbackEx,
     SelectTool,
-    MotoReadIOBit,
-    MotoReadIOBitReply,
-    MotoWriteIOBit,
-    MotoWriteIOBitReply,
-    MotoReadIOGroup,
-    MotoReadIOGroupReply,
-    MotoWriteIOGroup,
-    MotoWriteIOGroupReply,
+    MotoReadIO,
+    MotoReadIOReply,
+    MotoWriteIO,
+    MotoWriteIOReply,
     MotoIoCtrlReply,
+    MotoGetDhParameters,
     MotoRealTimeMotionJointStateEx,
     MotoRealTimeMotionJointCommandEx,
 ]
@@ -906,15 +960,17 @@ MSG_TYPE_CLS = {
     MsgType.MOTO_MOTION_CTRL: MotoMotionCtrl,
     MsgType.MOTO_MOTION_REPLY: MotoMotionReply,
     MsgType.MOTO_JOINT_FEEDBACK_EX: JointFeedbackEx,
-    MsgType.MOTO_READ_IO_BIT: MotoReadIOBit,
-    MsgType.MOTO_READ_IO_BIT_REPLY: MotoReadIOBitReply,
-    MsgType.MOTO_WRITE_IO_BIT: MotoWriteIOBit,
-    MsgType.MOTO_WRITE_IO_BIT_REPLY: MotoWriteIOBitReply,
-    MsgType.MOTO_READ_IO_GROUP: MotoReadIOGroup,
-    MsgType.MOTO_READ_IO_GROUP_REPLY: MotoReadIOGroupReply,
-    MsgType.MOTO_WRITE_IO_GROUP: MotoWriteIOGroup,
-    MsgType.MOTO_WRITE_IO_GROUP_REPLY: MotoWriteIOGroupReply,
+    MsgType.MOTO_READ_IO_BIT: MotoReadIO,
+    MsgType.MOTO_READ_IO_BIT_REPLY: MotoReadIOReply,
+    MsgType.MOTO_WRITE_IO_BIT: MotoWriteIO,
+    MsgType.MOTO_WRITE_IO_BIT_REPLY: MotoWriteIOReply,
+    MsgType.MOTO_READ_IO_GROUP: MotoReadIO,
+    MsgType.MOTO_READ_IO_GROUP_REPLY: MotoReadIOReply,
+    MsgType.MOTO_WRITE_IO_GROUP: MotoWriteIO,
+    MsgType.MOTO_WRITE_IO_GROUP_REPLY: MotoWriteIOReply,
     MsgType.MOTO_IOCTRL_REPLY: MotoIoCtrlReply,
+    MsgType.MOTO_SELECT_TOOL: SelectTool,
+    MsgType.MOTO_GET_DH_PARAMETERS: MotoGetDhParameters,
     MsgType.MOTO_REALTIME_MOTION_JOINT_STATE_EX: MotoRealTimeMotionJointStateEx,
     MsgType.MOTO_REALTIME_MOTION_JOINT_COMMAND_EX: MotoRealTimeMotionJointCommandEx,
 }
@@ -932,8 +988,12 @@ class SimpleMessage:
         return SimpleMessage(header, body)
 
     def to_bytes(self) -> bytes:
-        return (
-            Prefix(self.header.size + self.body.size).to_bytes()
-            + self.header.to_bytes()
-            + self.body.to_bytes()
-        )
+        if self.body is not None:
+            return (
+                Prefix(self.header.size + self.body.size).to_bytes()
+                + self.header.to_bytes()
+                + self.body.to_bytes()
+            )
+        else:
+            return Prefix(self.header.size).to_bytes() + self.header.to_bytes()
+

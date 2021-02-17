@@ -20,7 +20,7 @@ from moto.simple_message_connection import SimpleMessageConnection
 from moto.simple_message import (
     JointFeedback,
     JointFeedbackEx,
-    MsgType,
+    MsgType, RobotStatus,
     SimpleMessage,
     MOT_MAX_GR,
 )
@@ -36,6 +36,9 @@ class StateConnection(SimpleMessageConnection):
         self._joint_feedback: List[JointFeedback] = [
             None
         ] * MOT_MAX_GR  # Max controllable groups
+
+        self._joint_feedback_ex = None
+        self._robot_status = None
         self._lock: Lock = Lock()
 
         self._joint_feedback_callbacks: List[Callable] = []
@@ -51,6 +54,10 @@ class StateConnection(SimpleMessageConnection):
     def joint_feedback_ex(self) -> JointFeedbackEx:
         with self._lock:
             return deepcopy(self._joint_feedback_ex)
+
+    def robot_status(self) -> RobotStatus:
+        with self._lock:
+            return deepcopy(self._robot_status)
 
     def add_joint_feedback_msg_callback(self, callback: Callable):
         self._joint_feedback_callbacks.append(callback)
@@ -79,3 +86,9 @@ class StateConnection(SimpleMessageConnection):
                     self._joint_feedback_ex = deepcopy(msg.body)
                     for callback in self._joint_feedback_ex_callbacks:
                         callback(deepcopy(msg.body))
+
+            elif msg.header.msg_type == MsgType.ROBOT_STATUS:
+                with self._lock:
+                    self._robot_status = deepcopy(msg.body)
+
+
