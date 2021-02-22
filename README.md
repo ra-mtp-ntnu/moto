@@ -80,11 +80,7 @@ print(r1.position)
 
 ### Motion
 
-To be able to send trajectores, you must first enable the robot system:
-```python
-m.motion.enable_robot()
-```
-And then start the trajectory mode:
+To be able to send trajectores, you must first start the trajectory mode:
 ```python
 m.motion.start_trajectory_mode()
 ```
