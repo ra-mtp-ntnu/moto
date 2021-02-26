@@ -156,6 +156,9 @@ class Moto:
         if start_io_connection:
             self._io_connection.start()
 
+        while self.state.joint_feedback_ex() == None:
+            pass
+
     @property
     def control_groups(self):
         return self._control_groups
