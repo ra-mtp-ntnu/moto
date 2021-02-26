@@ -130,3 +130,7 @@ dmypy.json
 .vscode/settings.json
 .devcontainer/Dockerfile
 .devcontainer/devcontainer.json
+
+#VS Code
+.vscode/
+log/
