@@ -135,8 +135,8 @@ p1 = JointTrajPtFullEx(
     ],
 )
 
-m.motion.send_trajectory_point(p0) # Current position at time t=0.0
-m.motion.send_trajectory_point(p1) # Desired position at time t=5.0
+m.motion.send_joint_trajectory_point(p0) # Current position at time t=0.0
+m.motion.send_joint_trajectory_point(p1) # Desired position at time t=5.0
 ```
 
 ### IO
@@ -159,6 +159,35 @@ As per the [documentation](https://github.com/ros-industrial/motoman/blob/591a09
 ### ROS2 and Real-time control
 
 An extension of the current robot side driver with support for real-time control, and an accompanying ROS2 Control hardware interface is under development [here](https://github.com/tingelst/motoman) and [here](https://github.com/tingelst/motoman_hardware), respectively.
+
+## Troubleshooting 
+This is based on experiences with the YRC1000 controller, but should be similar for other controllers as well. 
+
+### When connection I get `[Errno 113] No route to host` 
+The IP is not correct.  
+You can find the IP of the controller in the pendant by performing these steps: 
+
+1. Go into management mode
+   * System info > Security > Change to 'MANAGEMENT MODE'
+   * Default password on the YRC1000 controller is all 9's (sixteen nines)
+2. Go into network services
+   * System info > Network Services 
+   * Look up the correct IP for the LAN port you are connected to.
+   * In our case, we use LAN2 which has a default IP of 192.168.255.200
+
+### When connecting, nothing happens or `[Errno 101] Network is unreachable`
+Your computer is most likely not on the same subnetwork as the robot, and the connection times out. 
+
+You have to manually set the IP and subnetmask of your computer to be the within the same subnet as the robot controller. You can find the IP of the robot controller by following the instructions above: [link](#errno-113-no-route-to-host). 
+
+> **Example**: If the robot has the IP 192.168.255.200 with a subnet of 255.255.255.0, then a valid IP of the computer would be an IP in the range 192.168.255.1-255 (except for 200). And the subnetmask should be set to 255.255.255.0 
+
+### The robot doesn't move when I call `send_joint_trajectory_point()`
+* Is the pendant set to remote mode? 
+* Are all emergency stop buttons reset? 
+* Is the door to the robot cell closed and reset? 
+
+A recommendation is to assert that `robot_status().mode == PendantMode.AUTO` before trying to send any trajectories.
 
 # Acknowledgements
 

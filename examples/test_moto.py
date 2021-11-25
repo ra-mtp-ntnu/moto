@@ -1,4 +1,4 @@
-from moto import motion_connection
+
 from moto import Moto, ControlGroupDefinition
 from moto.simple_message import (
     JointFeedbackEx,
@@ -10,7 +10,6 @@ from moto.simple_message import (
 
 import time
 import numpy as np
-import copy
 
 m = Moto(
     "192.168.255.200",
@@ -78,7 +77,7 @@ p1 = JointTrajPtFullEx(
         JointTrajPtExData(
             groupno=0,
             valid_fields=ValidFields.TIME | ValidFields.POSITION | ValidFields.VELOCITY,
-            time=5.0,
+            time=3.0,
             pos=np.deg2rad([10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
             vel=[0.0] * 10,
             acc=[0.0] * 10,
@@ -86,11 +85,59 @@ p1 = JointTrajPtFullEx(
         JointTrajPtExData(
             groupno=1,
             valid_fields=ValidFields.TIME | ValidFields.POSITION | ValidFields.VELOCITY,
-            time=10.0,
+            time=3.0,
             pos=np.deg2rad([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
             vel=[0.0] * 10,
             acc=[0.0] * 10,
         ),
     ],
 )
+
+warn = '\033[5;1;31;1;44m' # blinking red on blue
+highlight = '\033[37;1;44m' # White on blue
+underlined = '\033[4;37;1;44m' # Underlined white on blue 
+clear = '\033[0m' # clear formatting
+
+print(f'{warn}        Warning!        {clear}')
+print(f'{highlight}Will now try to move the robot to its home position. '\
++ f'Make sure this operation is safe!{clear}')
+print(f'{highlight}Are you ready? Type \'{underlined}sure{clear}{highlight}\' '\
++ f'to start. Any other text will abort.{clear}')
+response = input(f'>')
+
+if response == 'sure':
+    for i in range(5, 0, -1): 
+        print(f'{i}...', end=' ')
+        time.sleep(1);
+    
+    m.motion.start_trajectory_mode()
+    print("Waiting for robot to be ready...", end=' ')
+    while not m.state.robot_status().motion_possible and \
+        not m.state.robot_status().drives_powered:
+        time.sleep(0.1)
+
+    print("Robot ready. Sending trajectory.")  
+    m.motion.send_joint_trajectory_point(p0) # Current position at time t=0.0
+    m.motion.send_joint_trajectory_point(p1) # Desired position at time t=5.0
+
+    print("Waiting for robot to complete the trajectory...", end=' ')
+    while not m.state.robot_status().in_motion:
+        time.sleep(0.1)
+    
+    time.sleep(1)
+    print(m.state.robot_status().in_motion)
+    while m.state.robot_status().in_motion:
+        print(m.state.robot_status().in_motion)
+        time.sleep(0.1)
+    print(m.state.robot_status().in_motion)
+    print("Trajectory complete.")
+    print("Disabling trajectory mode.")
+    
+    #m.motion.stop_trajectory_mode()
+    #m.motion.stop_servos()
+
+    print("hold")
+else: 
+    print("Aborting... Good bye.")
+
 
