@@ -193,6 +193,12 @@ class Ternary(Enum):
     FALSE = 0
     TRUE = 1
 
+    def __bool__(self):
+        if self is Ternary.TRUE:
+            return True
+        else: 
+            return False
+
 
 class PendantMode(Enum):
     """Controller / Pendant mode."""

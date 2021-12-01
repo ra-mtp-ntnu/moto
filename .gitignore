@@ -127,6 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+.vscode
 .vscode/settings.json
 .devcontainer/Dockerfile
 .devcontainer/devcontainer.json
