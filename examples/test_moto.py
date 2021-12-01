@@ -3,7 +3,6 @@ from moto import Moto, ControlGroupDefinition
 from moto.simple_message import (
     JointFeedbackEx,
     JointTrajPtExData,
-    JointTrajPtFull,
     JointTrajPtFullEx,
     ValidFields,
 )
@@ -12,7 +11,7 @@ import time
 import numpy as np
 
 m = Moto(
-    "192.168.255.200",
+    "172.16.0.1", #"192.168.255.201",
     [
         ControlGroupDefinition(
             groupid="robot",
@@ -77,7 +76,7 @@ p1 = JointTrajPtFullEx(
         JointTrajPtExData(
             groupno=0,
             valid_fields=ValidFields.TIME | ValidFields.POSITION | ValidFields.VELOCITY,
-            time=3.0,
+            time=2.0,
             pos=np.deg2rad([10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
             vel=[0.0] * 10,
             acc=[0.0] * 10,
@@ -85,7 +84,7 @@ p1 = JointTrajPtFullEx(
         JointTrajPtExData(
             groupno=1,
             valid_fields=ValidFields.TIME | ValidFields.POSITION | ValidFields.VELOCITY,
-            time=3.0,
+            time=2.5,
             pos=np.deg2rad([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
             vel=[0.0] * 10,
             acc=[0.0] * 10,
@@ -93,16 +92,16 @@ p1 = JointTrajPtFullEx(
     ],
 )
 
-warn = '\033[5;1;31;1;44m' # blinking red on blue
-highlight = '\033[37;1;44m' # White on blue
-underlined = '\033[4;37;1;44m' # Underlined white on blue 
-clear = '\033[0m' # clear formatting
+WARN = '\033[5;1;31;1;44m' # blinking red on blue
+HIGHLIGHT = '\033[37;1;44m' # White on blue
+UNDERLINE = '\033[4;37;1;44m' # Underlined white on blue 
+CLEAR = '\033[0m' # clear formatting
 
-print(f'{warn}        Warning!        {clear}')
-print(f'{highlight}Will now try to move the robot to its home position. '\
-+ f'Make sure this operation is safe!{clear}')
-print(f'{highlight}Are you ready? Type \'{underlined}sure{clear}{highlight}\' '\
-+ f'to start. Any other text will abort.{clear}')
+print(f'{WARN}        Warning!        {CLEAR}')
+print(f'{HIGHLIGHT}Will now try to move the robot to its home position. '\
++ f'Make sure this operation is safe!{CLEAR}')
+print(f'{HIGHLIGHT}Are you ready? Type \'{UNDERLINE}sure{CLEAR}{HIGHLIGHT}\' '\
++ f'to start. Any other text will abort.{CLEAR}')
 response = input(f'>')
 
 if response == 'sure':
@@ -120,21 +119,18 @@ if response == 'sure':
     m.motion.send_joint_trajectory_point(p0) # Current position at time t=0.0
     m.motion.send_joint_trajectory_point(p1) # Desired position at time t=5.0
 
-    print("Waiting for robot to complete the trajectory...", end=' ')
-    while not m.state.robot_status().in_motion:
-        time.sleep(0.1)
+    print("Waiting for robot to complete the trajectory...", end=' ')    
     
     time.sleep(1)
-    print(m.state.robot_status().in_motion)
+    # TODO: This isn't a reliable way to know if the trajectory is complete.
     while m.state.robot_status().in_motion:
-        print(m.state.robot_status().in_motion)
         time.sleep(0.1)
-    print(m.state.robot_status().in_motion)
+    
     print("Trajectory complete.")
     print("Disabling trajectory mode.")
     
-    #m.motion.stop_trajectory_mode()
-    #m.motion.stop_servos()
+    m.motion.stop_trajectory_mode()
+    m.motion.stop_servos()
 
     print("hold")
 else: 
