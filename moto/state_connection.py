@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Callable
+from typing import List, Callable, Float
 from copy import deepcopy
 from threading import Thread, Lock, Event
 
@@ -20,7 +20,8 @@ from moto.simple_message_connection import SimpleMessageConnection
 from moto.simple_message import (
     JointFeedback,
     JointFeedbackEx,
-    MsgType, RobotStatus,
+    MsgType,
+    RobotStatus,
     SimpleMessage,
     MOT_MAX_GR,
 )
@@ -39,7 +40,7 @@ class StateConnection(SimpleMessageConnection):
 
         self._joint_feedback_ex = None
         self._robot_status = None
-        self._initial_response = Event()
+        self._initial_response: Event = Event()
         self._lock: Lock = Lock()
 
         self._joint_feedback_callbacks: List[Callable] = []
@@ -66,13 +67,15 @@ class StateConnection(SimpleMessageConnection):
     def add_joint_feedback_ex_msg_callback(self, callback: Callable):
         self._joint_feedback_ex_callbacks.append(callback)
 
-    def start(self, timeout=5) -> None:
+    def start(self, timeout: Float = 5) -> None:
         self._tcp_client.connect()
         self._worker_thread.start()
         if not self._initial_response.wait(timeout):
-            raise TimeoutError("Did not receive at least one of each message " +
-                "before timeout occured. Try increasing the timeout period. " +
-                f"Timeout currently set to {timeout}")
+            raise TimeoutError(
+                "Did not receive at least one of each message before timeout"
+                " occured. Try increasing the timeout period. "
+                + f"Timeout currently set to {timeout}"
+            )
 
     def stop(self) -> None:
         pass
@@ -96,11 +99,10 @@ class StateConnection(SimpleMessageConnection):
                 with self._lock:
                     self._robot_status = deepcopy(msg.body)
 
-            if not self._initial_response.is_set() and \
-                (self.robot_status is not None and \
-                self._joint_feedback is not None and \
-                self.joint_feedback_ex is not None):
+            if not self._initial_response.is_set() and (
+                self.robot_status is not None
+                and self._joint_feedback is not None
+                and self.joint_feedback_ex is not None
+            ):
                 print("At least one message of every time has been received.")
                 self._initial_response.set()
-
-
