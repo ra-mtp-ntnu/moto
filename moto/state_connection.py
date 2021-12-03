@@ -38,8 +38,8 @@ class StateConnection(SimpleMessageConnection):
             None
         ] * MOT_MAX_GR  # Max controllable groups
 
-        self._joint_feedback_ex = None
-        self._robot_status = None
+        self._joint_feedback_ex: JointFeedbackEx = None
+        self._robot_status: RobotStatus = None
         self._initial_response: Event = Event()
         self._lock: Lock = Lock()
 
@@ -67,7 +67,7 @@ class StateConnection(SimpleMessageConnection):
     def add_joint_feedback_ex_msg_callback(self, callback: Callable):
         self._joint_feedback_ex_callbacks.append(callback)
 
-    def start(self, timeout: Float = 5) -> None:
+    def start(self, timeout: Float = 5.0) -> None:
         self._tcp_client.connect()
         self._worker_thread.start()
         if not self._initial_response.wait(timeout):
