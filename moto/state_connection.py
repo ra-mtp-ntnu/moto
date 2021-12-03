@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Callable, Float
+from typing import List, Callable, Float, Int
 from copy import deepcopy
 from threading import Thread, Lock, Event
 
@@ -42,7 +42,8 @@ class StateConnection(SimpleMessageConnection):
         self._robot_status: RobotStatus = None
         self._initial_response: Event = Event()
         self._lock: Lock = Lock()
-
+        # Example of a good addition
+        self._demo: Int = 1337
         self._joint_feedback_callbacks: List[Callable] = []
         self._joint_feedback_ex_callbacks: List[Callable] = []
 
