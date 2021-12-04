@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Callable, Float
+from typing import List, Callable
 from copy import deepcopy
 from threading import Thread, Lock, Event
 
@@ -67,7 +67,7 @@ class StateConnection(SimpleMessageConnection):
     def add_joint_feedback_ex_msg_callback(self, callback: Callable):
         self._joint_feedback_ex_callbacks.append(callback)
 
-    def start(self, timeout: Float = 5.0) -> None:
+    def start(self, timeout: float = 5.0) -> None:
         self._tcp_client.connect()
         self._worker_thread.start()
         if not self._initial_response.wait(timeout):
@@ -104,5 +104,4 @@ class StateConnection(SimpleMessageConnection):
                 and self._joint_feedback is not None
                 and self.joint_feedback_ex is not None
             ):
-                print("At least one message of every time has been received.")
                 self._initial_response.set()
