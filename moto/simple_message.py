@@ -454,21 +454,21 @@ class MotoMotionReply:
         self.sequence: int = sequence
         try:
             self.command: CommandType = CommandType(command)
-        except:
+        except Exception:
             try:
                 self.command: MsgType = MsgType(command)
-            except:
+            except Exception:
                 self.command: int = command
         try:
             self.result: ResultType = ResultType(result)
-        except:
+        except Exception:
             self.result = result
         try:
             self.subcode: InvalidSubCode = InvalidSubCode(subcode)
-        except:
+        except Exception:
             try:
                 self.subcode: NotReadySubcode = NotReadySubcode(subcode)
-            except:
+            except Exception:
                 self.subcode = subcode
         self.data: List[float] = data
 
@@ -659,7 +659,7 @@ class MotoReadIOReply:
         self.value = value
         try:
             self.result_code: IoResultCodes = IoResultCodes(result_code)
-        except:
+        except Exception:
             self.result_code: int = result_code
 
     @classmethod

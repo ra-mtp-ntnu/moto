@@ -117,7 +117,7 @@ class RealTimeMotionServerSim:
                     )
 
                     self._conn.send(res.to_bytes())
-                except:
+                except Exception:
                     pass
 
     def _rt_worker(self) -> None:
