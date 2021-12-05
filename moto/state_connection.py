@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Callable, Float
+from typing import List, Callable
 from copy import deepcopy
 from threading import Thread, Lock, Event
 
@@ -41,6 +41,7 @@ class StateConnection(SimpleMessageConnection):
         self._joint_feedback_ex: JointFeedbackEx = None
         self._robot_status: RobotStatus = None
         self._initial_response: Event = Event()
+        self._stop: Event = Event()
         self._lock: Lock = Lock()
 
         self._joint_feedback_callbacks: List[Callable] = []
@@ -67,10 +68,11 @@ class StateConnection(SimpleMessageConnection):
     def add_joint_feedback_ex_msg_callback(self, callback: Callable):
         self._joint_feedback_ex_callbacks.append(callback)
 
-    def start(self, timeout: Float = 5.0) -> None:
+    def start(self, timeout: float = 5.0) -> None:
         self._tcp_client.connect()
         self._worker_thread.start()
         if not self._initial_response.wait(timeout):
+            self._stop.set()
             raise TimeoutError(
                 "Did not receive at least one of each message before timeout"
                 " occured. Try increasing the timeout period. "
@@ -81,7 +83,7 @@ class StateConnection(SimpleMessageConnection):
         pass
 
     def _worker(self) -> None:
-        while True:
+        while True and not self._stop.is_set():
             msg: SimpleMessage = self.recv()
             if msg.header.msg_type == MsgType.JOINT_FEEDBACK:
                 with self._lock:
@@ -100,9 +102,8 @@ class StateConnection(SimpleMessageConnection):
                     self._robot_status = deepcopy(msg.body)
 
             if not self._initial_response.is_set() and (
-                self.robot_status is not None
-                and self._joint_feedback is not None
-                and self.joint_feedback_ex is not None
+                isinstance(self.robot_status(), RobotStatus)
+                and any(isinstance(elem, JointFeedback) for elem in self._joint_feedback)
+                and isinstance(self.joint_feedback_ex(), JointFeedbackEx)
             ):
-                print("At least one message of every time has been received.")
                 self._initial_response.set()
