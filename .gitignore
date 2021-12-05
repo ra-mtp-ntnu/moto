@@ -131,3 +131,5 @@ dmypy.json
 .vscode/settings.json
 .devcontainer/Dockerfile
 .devcontainer/devcontainer.json
+Changes.md
+examples/bug.py

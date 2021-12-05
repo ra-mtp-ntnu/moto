@@ -15,6 +15,7 @@
 from typing import List, Callable
 from copy import deepcopy
 from threading import Thread, Lock, Event
+import logging
 
 from moto.simple_message_connection import SimpleMessageConnection
 from moto.simple_message import (
@@ -77,6 +78,7 @@ class StateConnection(SimpleMessageConnection):
                 + f"Timeout currently set to {timeout}"
             )
 
+
     def stop(self) -> None:
         pass
 
@@ -105,3 +107,8 @@ class StateConnection(SimpleMessageConnection):
                 and isinstance(self.joint_feedback_ex(), JointFeedbackEx)
             ):
                 self._initial_response.set()
+                logging.debug(
+                    "At least one message of every type has been received. "
+                    "Event object is now set. "
+                )
+
