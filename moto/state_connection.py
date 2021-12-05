@@ -42,6 +42,7 @@ class StateConnection(SimpleMessageConnection):
         self._joint_feedback_ex: JointFeedbackEx = None
         self._robot_status: RobotStatus = None
         self._initial_response: Event = Event()
+        self._stop: Event = Event()
         self._lock: Lock = Lock()
 
         self._joint_feedback_callbacks: List[Callable] = []
@@ -72,6 +73,7 @@ class StateConnection(SimpleMessageConnection):
         self._tcp_client.connect()
         self._worker_thread.start()
         if not self._initial_response.wait(timeout):
+            self._stop.set()
             raise TimeoutError(
                 "Did not receive at least one of each message before timeout"
                 " occured. Try increasing the timeout period. "
@@ -83,7 +85,7 @@ class StateConnection(SimpleMessageConnection):
         pass
 
     def _worker(self) -> None:
-        while True:
+        while True and not self._stop.is_set():
             msg: SimpleMessage = self.recv()
             if msg.header.msg_type == MsgType.JOINT_FEEDBACK:
                 with self._lock:
@@ -103,7 +105,7 @@ class StateConnection(SimpleMessageConnection):
 
             if not self._initial_response.is_set() and (
                 isinstance(self.robot_status(), RobotStatus)
-                and isinstance(self.joint_feedback(), JointFeedback)
+                and any(isinstance(elem, JointFeedback) for elem in self._joint_feedback)
                 and isinstance(self.joint_feedback_ex(), JointFeedbackEx)
             ):
                 self._initial_response.set()
