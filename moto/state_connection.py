@@ -100,8 +100,8 @@ class StateConnection(SimpleMessageConnection):
                     self._robot_status = deepcopy(msg.body)
 
             if not self._initial_response.is_set() and (
-                self.robot_status is not None
-                and self._joint_feedback is not None
-                and self.joint_feedback_ex is not None
+                isinstance(self.robot_status(), RobotStatus)
+                and isinstance(self.joint_feedback(), JointFeedback)
+                and isinstance(self.joint_feedback_ex(), JointFeedbackEx)
             ):
                 self._initial_response.set()

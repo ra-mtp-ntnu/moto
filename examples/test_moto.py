@@ -109,7 +109,7 @@ if response == 'sure':
         print(f'{i}...', end=' ')
         time.sleep(1);
     
-    m.motion.start_trajectory_mode()
+    #m.motion.start_trajectory_mode()
     print("Waiting for robot to be ready...", end=' ')
     while not m.state.robot_status().motion_possible and \
         not m.state.robot_status().drives_powered:
@@ -119,20 +119,14 @@ if response == 'sure':
     m.motion.send_joint_trajectory_point(p0) # Current position at time t=0.0
     m.motion.send_joint_trajectory_point(p1) # Desired position at time t=5.0
 
-    print("Waiting for robot to complete the trajectory...", end=' ')    
-    
-    time.sleep(1)
-    # TODO: This isn't a reliable way to know if the trajectory is complete.
-    while m.state.robot_status().in_motion:
-        time.sleep(0.1)
-    
-    print("Trajectory complete.")
-    print("Disabling trajectory mode.")
-    
+    input("Press enter when robot has stopped.")
+
+    print("Disabling trajectory mode, and turning off servos.") 
     m.motion.stop_trajectory_mode()
     m.motion.stop_servos()
 
-    print("hold")
+    print("Done.")
+
 else: 
     print("Aborting... Good bye.")
 
