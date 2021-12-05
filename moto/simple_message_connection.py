@@ -14,7 +14,6 @@
 
 from typing import Tuple
 import socket
-import logging 
 
 from moto.simple_message import SimpleMessage
 
@@ -41,7 +40,6 @@ class TcpClient:
                 f'{e.strerror}. Did you remember to reset the alarms? '
                 'And is your computer on the correct subnet?'
             )
-            logging.exception(error)
             e.strerror = error
             raise
         except OSError as e: 
@@ -51,7 +49,6 @@ class TcpClient:
                 error = f'{e.strerror}. Is the robot IP correct?'
             elif e.errno == 101:
                 error = f'{e.strerror}. Is your computer on the correct subnet?'
-            logging.exception(error)
             e.strerror = error
             raise
 

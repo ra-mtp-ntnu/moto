@@ -173,7 +173,7 @@ class Header:
         except ValueError as e:
             # If any of the msg, command, or reply types isn't a type described in
             # Motoplus-ROS Incremental Motion interface - Engineering Design Specifications.
-            # Then we 
+            # Then we assign it to be of type Invalid
             self.msg_type = MsgType(-1)
 
 

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 from typing import Union
 
 from moto.simple_message_connection import SimpleMessageConnection
@@ -105,11 +106,14 @@ class MotionConnection(SimpleMessageConnection):
     def send_joint_trajectory_point(
         self, joint_trajectory_point: Union[JointTrajPtFull, JointTrajPtFullEx]
     ) -> SimpleMessage:
-        assert self.motion_ready, 
         if isinstance(joint_trajectory_point, JointTrajPtFull):
             msg_type = MsgType.JOINT_TRAJ_PT_FULL
         elif isinstance(joint_trajectory_point, JointTrajPtFullEx):
             msg_type = MsgType.MOTO_JOINT_TRAJ_PT_FULL_EX
+        elif not self.motion_ready():
+            raise RuntimeError("Robot is in motion ready state. "
+                "start_traj_mode must be executed before sending trajectory "
+                "points.")
         else:
             raise SimpleMessageError("Not a valid joint_trajectory_point.")
         msg = SimpleMessage(
