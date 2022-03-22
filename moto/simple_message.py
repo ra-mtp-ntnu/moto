@@ -600,7 +600,7 @@ class JointFeedbackEx:
 
     def to_bytes(self) -> bytes:
         packed: bytes = struct.pack("i", self.number_of_valid_groups)
-        for pt in self.joint_traj_pt_data:
+        for pt in self.joint_feedback_data:
             packed += pt.to_bytes()
         return packed
 
