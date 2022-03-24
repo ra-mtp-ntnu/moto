@@ -581,6 +581,10 @@ class JointFeedbackEx:
     number_of_valid_groups: int
     joint_feedback_data: List[JointFeedback]
 
+    @property
+    def size(self):
+        return 4 + JointFeedback.size * self.number_of_valid_groups
+
     @classmethod
     def from_bytes(cls, bytes_: bytes):
         number_of_valid_groups = struct.unpack("i", bytes_[:4])[0]
@@ -596,7 +600,7 @@ class JointFeedbackEx:
 
     def to_bytes(self) -> bytes:
         packed: bytes = struct.pack("i", self.number_of_valid_groups)
-        for pt in self.joint_traj_pt_data:
+        for pt in self.joint_feedback_data:
             packed += pt.to_bytes()
         return packed
 
