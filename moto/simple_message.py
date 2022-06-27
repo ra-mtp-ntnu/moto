@@ -966,6 +966,7 @@ SimpleMessageBody = Union[
 MSG_TYPE_CLS = {
     MsgType.ROBOT_STATUS: RobotStatus,
     MsgType.JOINT_TRAJ_PT_FULL: JointTrajPtFull,
+    MsgType.MOTO_JOINT_TRAJ_PT_FULL_EX: JointTrajPtFullEx,
     MsgType.JOINT_FEEDBACK: JointFeedback,
     MsgType.MOTO_MOTION_CTRL: MotoMotionCtrl,
     MsgType.MOTO_MOTION_REPLY: MotoMotionReply,
