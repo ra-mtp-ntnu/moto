@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 from typing import Union
 
 from moto.simple_message_connection import SimpleMessageConnection
@@ -23,6 +24,7 @@ from moto.simple_message import (
     ReplyType,
     MotoMotionCtrl,
     CommandType,
+    ResultType,
     SelectTool,
     SimpleMessage,
     JointTrajPtFull,
@@ -50,6 +52,10 @@ class MotionConnection(SimpleMessageConnection):
 
     def check_motion_ready(self):
         return self._send_and_recv_request(CommandType.CHECK_MOTION_READY)
+
+    def motion_ready(self) -> bool:
+        response: SimpleMessage = self.check_motion_ready()
+        return response.body.result is ResultType.SUCCESS
 
     def check_queue_count(self, groupno: int):
         return self._send_and_recv_request(CommandType.CHECK_QUEUE_CNT, groupno)
@@ -104,8 +110,12 @@ class MotionConnection(SimpleMessageConnection):
             msg_type = MsgType.JOINT_TRAJ_PT_FULL
         elif isinstance(joint_trajectory_point, JointTrajPtFullEx):
             msg_type = MsgType.MOTO_JOINT_TRAJ_PT_FULL_EX
+        elif not self.motion_ready():
+            raise RuntimeError("Robot is in motion ready state. "
+                "start_traj_mode must be executed before sending trajectory "
+                "points.")
         else:
-            raise SimpleMessageError("Not valid joint_trajectory_point.")
+            raise SimpleMessageError("Not a valid joint_trajectory_point.")
         msg = SimpleMessage(
             Header(
                 msg_type=msg_type,

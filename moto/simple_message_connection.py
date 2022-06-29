@@ -28,7 +28,30 @@ class TcpClient:
         self._socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 
     def connect(self) -> None:
-        self._socket.connect(self._address)
+        try:
+            self._socket.connect(self._address)
+        # TODO: Write a custom exception? RobotConnectionException? 
+        except ConnectionRefusedError as e: 
+            # This can happen if:
+            # 1. If the alarms are not reset. Then the controller refuses connection.
+            # 2. If the user has multiple network interfaces and the one connecting
+            #    to the robot is not configured to the same subnet as the robot.
+            error = ( 
+                f'{e.strerror}. Did you remember to reset the alarms? '
+                'And is your computer on the correct subnet?'
+            )
+            e.strerror = error
+            raise
+        except OSError as e: 
+            # This can happen if: 
+            # 1. The network interface is not set to the same subnet as the robot.
+            if e.errno == 113:
+                error = f'{e.strerror}. Is the robot IP correct?'
+            elif e.errno == 101:
+                error = f'{e.strerror}. Is your computer on the correct subnet?'
+            e.strerror = error
+            raise
+
 
     def send(self, data: bytes) -> None:
         self._socket.sendall(data)

@@ -43,6 +43,7 @@ class Prefix:
 
 
 class MsgType(Enum):
+    INVALID = -1
     GET_VERSION = 2
     ROBOT_STATUS = 13
 
@@ -165,9 +166,16 @@ class Header:
         comm_type: Union[int, CommType],
         reply_type: Union[int, ReplyType],
     ):
-        self.msg_type = MsgType(msg_type)
-        self.comm_type = CommType(comm_type)
-        self.reply_type = ReplyType(reply_type)
+        try:
+            self.msg_type = MsgType(msg_type)
+            self.comm_type = CommType(comm_type)
+            self.reply_type = ReplyType(reply_type)
+        except ValueError as e:
+            # If any of the msg, command, or reply types isn't a type described in
+            # Motoplus-ROS Incremental Motion interface - Engineering Design Specifications.
+            # Then we assign it to be of type Invalid
+            self.msg_type = MsgType(-1)
+
 
     @classmethod
     def from_bytes(cls, bytes_: bytes):
@@ -206,6 +214,17 @@ class PendantMode(Enum):
     UNKNOWN = -1
     MANUAL = 1
     AUTO = 2
+
+@dataclass
+class Invalid:
+    data: bytes
+
+    def __init__(self, data) -> None:
+        self.data = data
+
+    @classmethod
+    def from_bytes(cls, bytes_: bytes):
+        return cls(bytes_)
 
 
 @dataclass
@@ -454,21 +473,21 @@ class MotoMotionReply:
         self.sequence: int = sequence
         try:
             self.command: CommandType = CommandType(command)
-        except:
+        except Exception:
             try:
                 self.command: MsgType = MsgType(command)
-            except:
+            except Exception:
                 self.command: int = command
         try:
             self.result: ResultType = ResultType(result)
-        except:
+        except Exception:
             self.result = result
         try:
             self.subcode: InvalidSubCode = InvalidSubCode(subcode)
-        except:
+        except Exception:
             try:
                 self.subcode: NotReadySubcode = NotReadySubcode(subcode)
-            except:
+            except Exception:
                 self.subcode = subcode
         self.data: List[float] = data
 
@@ -663,7 +682,7 @@ class MotoReadIOReply:
         self.value = value
         try:
             self.result_code: IoResultCodes = IoResultCodes(result_code)
-        except:
+        except Exception:
             self.result_code: int = result_code
 
     @classmethod
@@ -704,7 +723,7 @@ class MotoWriteIOReply:
     def __init__(self, result_code: Union[int, IoResultCodes]):
         try:
             self.result_code: IoResultCodes = IoResultCodes(result_code)
-        except:
+        except Exception:
             self.result_code: int = result_code
 
     @classmethod
@@ -964,6 +983,7 @@ SimpleMessageBody = Union[
 
 
 MSG_TYPE_CLS = {
+    MsgType.INVALID: Invalid,
     MsgType.ROBOT_STATUS: RobotStatus,
     MsgType.JOINT_TRAJ_PT_FULL: JointTrajPtFull,
     MsgType.MOTO_JOINT_TRAJ_PT_FULL_EX: JointTrajPtFullEx,
@@ -995,7 +1015,10 @@ class SimpleMessage:
     @classmethod
     def from_bytes(cls, bytes_: bytes):
         header = Header.from_bytes(bytes_[4:16])
-        body = MSG_TYPE_CLS[header.msg_type].from_bytes(bytes_[16:])
+        if header.msg_type is Invalid:
+            body = MSG_TYPE_CLS[header.msg_type].from_bytes(bytes_)
+        else:
+            body = MSG_TYPE_CLS[header.msg_type].from_bytes(bytes_[16:])
         return SimpleMessage(header, body)
 
     def to_bytes(self) -> bytes:

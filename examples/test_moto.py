@@ -109,7 +109,7 @@ if response == 'sure':
         print(f'{i}...', end=' ')
         time.sleep(1);
     
-    m.motion.start_trajectory_mode()
+    # m.motion.start_trajectory_mode()
     print("Waiting for robot to be ready...", end=' ')
     while not m.state.robot_status().motion_possible and \
         not m.state.robot_status().drives_powered:
