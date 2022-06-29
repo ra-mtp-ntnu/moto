@@ -1,0 +1,21 @@
+# Automatically check that the new code is black formatted. 
+
+name: Check black formatting on modified files
+on: [pull_request]
+
+jobs:
+    check-black-formatting:
+        runs-on: ubuntu-latest
+        steps:
+        
+        - uses: actions/checkout@v2
+          with:
+            ref: ${{ github.event.pull_request.head.sha }}
+        
+        - name: Check that new files are blackened
+          run: |
+            chmod +x "${GITHUB_WORKSPACE}/.github/workflows/check_formatting.sh"
+            bash "${GITHUB_WORKSPACE}/.github/workflows/check_formatting.sh"
+          shell: bash
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
